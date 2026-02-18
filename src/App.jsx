@@ -698,7 +698,7 @@ export default function App() {
           <div>
             <label style={{fontSize:"8px",color:T.tm,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"1.5px",display:"block",marginBottom:"3px"}}>EXAMPLES</label>
             <div style={{display:"flex",gap:"3px",flexWrap:"wrap"}}>
-              {Object.entries(EXAMPLES).map(([k,ex])=>(<button key={k} onClick={()=>{setInput(ex.description);setActiveEx(k);if(isMobile)setDrawerOpen(false);}} style={{padding:isMobile?"6px 10px":"3px 7px",borderRadius:"4px",border:`1px solid ${activeEx===k?"#3B82F6":T.bdr}`,background:activeEx===k?"rgba(59,130,246,0.1)":"transparent",color:activeEx===k?"#3B82F6":T.ts,fontSize:isMobile?"10px":"9px",cursor:"pointer",minHeight:isMobile?"44px":"auto"}}>{ex.title}</button>))}
+              {Object.entries(EXAMPLES).map(([k,ex])=>(<button key={k} onClick={()=>{setInput(ex.description);setActiveEx(k);}} style={{padding:isMobile?"6px 10px":"3px 7px",borderRadius:"4px",border:`1px solid ${activeEx===k?"#3B82F6":T.bdr}`,background:activeEx===k?"rgba(59,130,246,0.1)":"transparent",color:activeEx===k?"#3B82F6":T.ts,fontSize:isMobile?"10px":"9px",cursor:"pointer",minHeight:isMobile?"44px":"auto"}}>{ex.title}</button>))}
             </div>
           </div>
 
@@ -715,7 +715,7 @@ export default function App() {
           </button>
 
           {!hasKey&&input.trim()&&(
-            <button onClick={()=>{setData(DEMO[activeEx]||DEMO.smb);if(isMobile)setDrawerOpen(false);}}
+            <button onClick={()=>{setData(DEMO[activeEx]||DEMO.smb);}}
               style={{padding:isMobile?"10px":"7px",borderRadius:"5px",border:`1px solid ${T.bdr}`,background:"transparent",color:T.ts,fontSize:isMobile?"11px":"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"44px":"auto"}}>
               ▶ Demo (no key)
             </button>
