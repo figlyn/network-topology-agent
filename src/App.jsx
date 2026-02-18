@@ -521,6 +521,7 @@ export default function App() {
   const [provider,setProvider]=useState("anthropic");
   const [config,setConfig]=useState({apiKey:"",model:"",endpoint:"",deployment:"",customModel:""});
   const [showCfg,setShowCfg]=useState(false);
+  const [showIcons,setShowIcons]=useState(false);
   const [editMode,setEditMode]=useState(false);
   const dRef=useRef(null);
   const T=TH[theme]; const P=PROVIDERS[provider];
@@ -655,6 +656,23 @@ export default function App() {
               </p>
             </div>
           )}
+
+          {/* Icon Guide */}
+          <div style={{borderRadius:"5px",border:`1px solid ${T.bdr}`,overflow:"hidden",marginTop:"auto"}}>
+            <button onClick={()=>setShowIcons(v=>!v)} style={{width:"100%",padding:"6px 10px",background:"transparent",border:"none",color:T.ts,fontSize:"9px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",textAlign:"left",display:"flex",justifyContent:"space-between"}}>
+              <span>Icon Guide</span><span>{showIcons?"▾":"▸"}</span>
+            </button>
+            {showIcons&&(
+              <div style={{padding:"8px",borderTop:`1px solid ${T.bdr}`,background:T.bg,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px",maxHeight:"280px",overflowY:"auto"}}>
+                {Object.entries(CI).map(([name,Icon])=>(
+                  <div key={name} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 4px",borderRadius:"4px",background:T.srf,border:`1px solid ${T.bdr}`}}>
+                    <svg viewBox="0 0 48 36" width="32" height="24" style={{color:T.c[name]||T.ts}}><Icon/></svg>
+                    <span style={{fontSize:"7px",color:T.tm,fontFamily:"'JetBrains Mono',monospace",marginTop:"3px",textAlign:"center",wordBreak:"break-all"}}>{name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </aside>
 
         <main ref={dRef} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"12px"}}>
