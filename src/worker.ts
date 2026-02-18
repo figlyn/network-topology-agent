@@ -24,7 +24,14 @@ export default {
       try {
         const headerKey = request.headers.get("x-api-key")?.trim();
         const apiKey = headerKey || env.ANTHROPIC_API_KEY;
+
+        // Debug logging
+        console.log("API Key source:", headerKey ? "user-provided" : (env.ANTHROPIC_API_KEY ? "env-secret" : "none"));
+        console.log("Header key present:", !!headerKey);
+        console.log("Env key present:", !!env.ANTHROPIC_API_KEY);
+
         if (!apiKey) {
+          console.log("ERROR: No API key available");
           return new Response(JSON.stringify({ error: { message: "API key required" } }), {
             status: 401,
             headers: corsHeaders,
