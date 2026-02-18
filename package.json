@@ -1,0 +1,32 @@
+{
+  "name": "network-topology-agent",
+  "version": "1.0.0",
+  "description": "AI-powered network topology diagram generator for B2B telecom proposals. Converts solution descriptions into Cisco-style topology diagrams with operator cloud model, drag-to-edit, and multi-LLM support.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.0"
+  },
+  "keywords": [
+    "network-topology",
+    "telecom",
+    "cisco",
+    "diagram",
+    "ai",
+    "llm",
+    "sd-wan",
+    "b2b",
+    "proposal"
+  ],
+  "license": "MIT"
+}
