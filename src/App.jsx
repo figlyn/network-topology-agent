@@ -229,7 +229,7 @@ function InlineEdit({ x, y, value, onChange, fontSize, fontFamily, fill, fontWei
 }
 
 // ===== TOPOLOGY =====
-function Topo({ data, setData, cRef, theme, editMode }) {
+function Topo({ data, setData, cRef, theme, editMode, isMobile }) {
   const T = TH[theme];
   const [dims, setDims] = useState({w:1300, h:800});
   const [dragState, setDragState] = useState(null); // {nodeId, offsetX, offsetY}
@@ -247,9 +247,13 @@ function Topo({ data, setData, cRef, theme, editMode }) {
         data.operatorNodes.filter(n=>n.position==="egress").length,
         data.externalNodes.length
       );
-      setDims({w:Math.max(r.width-40,1100), h:Math.max(700, mx*100+200)});
+      if (isMobile) {
+        setDims({w:Math.max(r.width-20,900), h:Math.max(500, mx*80+150)});
+      } else {
+        setDims({w:Math.max(r.width-40,1100), h:Math.max(700, mx*100+200)});
+      }
     }
-  }, [data, cRef]);
+  }, [data, cRef, isMobile]);
 
   // Reset overrides when data changes fundamentally
   useEffect(() => { setOverrides({}); setSelected(null); }, [data.solutionTitle]);
@@ -304,13 +308,55 @@ function Topo({ data, setData, cRef, theme, editMode }) {
 
   const onMouseUp = useCallback(() => { setDragState(null); }, []);
 
+  // Touch handlers for mobile
+  const onTouchStart = (e, nodeId) => {
+    if (!editMode) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const svgPt = svgRef.current.createSVGPoint();
+    svgPt.x = touch.clientX; svgPt.y = touch.clientY;
+    const ctm = svgRef.current.getScreenCTM().inverse();
+    const pt = svgPt.matrixTransform(ctm);
+    const p = getPos(nodeId);
+    setDragState({ nodeId, offsetX: pt.x - p.cx, offsetY: pt.y - p.cy });
+    setSelected(nodeId);
+  };
+
+  const onTouchMove = useCallback((e) => {
+    if (!dragState) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const svgPt = svgRef.current.createSVGPoint();
+    svgPt.x = touch.clientX; svgPt.y = touch.clientY;
+    const ctm = svgRef.current.getScreenCTM().inverse();
+    const pt = svgPt.matrixTransform(ctm);
+    const base = pos[dragState.nodeId];
+    if (!base) return;
+    setOverrides(prev => ({
+      ...prev,
+      [dragState.nodeId]: {
+        dx: pt.x - dragState.offsetX - base.cx,
+        dy: pt.y - dragState.offsetY - base.cy
+      }
+    }));
+  }, [dragState, pos]);
+
+  const onTouchEnd = useCallback(() => { setDragState(null); }, []);
+
   useEffect(() => {
     if (dragState) {
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", onMouseUp);
-      return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("touchend", onTouchEnd);
+      return () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        window.removeEventListener("touchmove", onTouchMove);
+        window.removeEventListener("touchend", onTouchEnd);
+      };
     }
-  }, [dragState, onMouseMove, onMouseUp]);
+  }, [dragState, onMouseMove, onMouseUp, onTouchMove, onTouchEnd]);
 
   const allNodes = [...data.customerNodes, ...data.operatorNodes, ...data.externalNodes];
 
@@ -367,8 +413,8 @@ function Topo({ data, setData, cRef, theme, editMode }) {
   const opCloudH = h - pad.t - pad.b + 20;
 
   return (
-    <svg ref={svgRef} width={w} height={h} viewBox={`0 0 ${w} ${h}`} xmlns="http://www.w3.org/2000/svg"
-      onClick={()=>setSelected(null)} style={{cursor: dragState ? "grabbing" : "default"}}>
+    <svg ref={svgRef} width={isMobile?"100%":w} height={isMobile?"auto":h} viewBox={`0 0 ${w} ${h}`} xmlns="http://www.w3.org/2000/svg"
+      onClick={()=>setSelected(null)} style={{cursor: dragState ? "grabbing" : "default", maxWidth:"100%", minHeight:isMobile?"400px":"auto"}}>
       <defs>
         <pattern id="tgrid" width="20" height="20" patternUnits="userSpaceOnUse">
           <circle cx="10" cy="10" r="0.4" fill={T.dot} opacity="0.3"/>
@@ -450,7 +496,8 @@ function Topo({ data, setData, cRef, theme, editMode }) {
         return (
           <g key={nd.id} onClick={e=>{e.stopPropagation(); if(editMode) setSelected(nd.id);}}
             onMouseDown={e=>onMouseDown(e, nd.id)}
-            style={{cursor: editMode ? (dragState?.nodeId===nd.id ? "grabbing" : "grab") : "default"}}>
+            onTouchStart={e=>onTouchStart(e, nd.id)}
+            style={{cursor: editMode ? (dragState?.nodeId===nd.id ? "grabbing" : "grab") : "default", touchAction: editMode ? "none" : "auto"}}>
 
             {/* Selection highlight */}
             {editMode && isSel && (
@@ -524,10 +571,18 @@ export default function App() {
   const [showCfg,setShowCfg]=useState(false);
   const [showIcons,setShowIcons]=useState(false);
   const [editMode,setEditMode]=useState(false);
+  const [isMobile,setIsMobile]=useState(typeof window!=='undefined'&&window.innerWidth<768);
+  const [drawerOpen,setDrawerOpen]=useState(false);
   const dRef=useRef(null);
   const T=TH[theme]; const P=PROVIDERS[provider];
 
   useEffect(()=>{setConfig(c=>({...c,model:P.defaultModel}));},[provider]);
+
+  useEffect(()=>{
+    const handleResize=()=>setIsMobile(window.innerWidth<768);
+    window.addEventListener('resize',handleResize);
+    return ()=>window.removeEventListener('resize',handleResize);
+  },[]);
 
   const generate=useCallback(async(desc)=>{
     setLoading(true);setError(null);setData(null);setEditMode(false);
@@ -564,31 +619,54 @@ export default function App() {
     <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'DM Sans',sans-serif",transition:"background 0.3s"}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 
-      <header style={{padding:"10px 20px",borderBottom:`1px solid ${T.bdr}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.hbg,backdropFilter:"blur(12px)"}}>
+      <header style={{padding:isMobile?"8px 12px":"10px 20px",borderBottom:`1px solid ${T.bdr}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.hbg,backdropFilter:"blur(12px)"}}>
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+          {isMobile&&(
+            <button onClick={()=>setDrawerOpen(v=>!v)} style={{
+              padding:"8px",background:"transparent",border:"none",color:T.text,
+              fontSize:"18px",cursor:"pointer",minWidth:"44px",minHeight:"44px",
+              display:"flex",alignItems:"center",justifyContent:"center"
+            }}>{drawerOpen?"✕":"☰"}</button>
+          )}
           <div style={{width:"26px",height:"26px",borderRadius:"5px",background:"linear-gradient(135deg,#3B82F6,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700,color:"white"}}>◈</div>
           <div>
-            <h1 style={{margin:0,fontSize:"13px",fontWeight:700}}>Network Topology Agent</h1>
-            <p style={{margin:0,fontSize:"8px",color:T.tm,fontFamily:"'JetBrains Mono',monospace"}}>Drag · Edit · Export · Multi-LLM</p>
+            <h1 style={{margin:0,fontSize:isMobile?"12px":"13px",fontWeight:700}}>{isMobile?"Topology Agent":"Network Topology Agent"}</h1>
+            {!isMobile&&<p style={{margin:0,fontSize:"8px",color:T.tm,fontFamily:"'JetBrains Mono',monospace"}}>Drag · Edit · Export · Multi-LLM</p>}
           </div>
         </div>
-        <div style={{display:"flex",gap:"5px",alignItems:"center"}}>
+        <div style={{display:"flex",gap:isMobile?"4px":"5px",alignItems:"center"}}>
           {data && (
             <button onClick={()=>setEditMode(v=>!v)} style={{
-              padding:"5px 12px",background:editMode?"rgba(59,130,246,0.15)":"transparent",
+              padding:isMobile?"8px 10px":"5px 12px",background:editMode?"rgba(59,130,246,0.15)":"transparent",
               border:`1px solid ${editMode?T.selStroke:T.bdr}`,borderRadius:"5px",
               color:editMode?T.selStroke:T.ts,fontSize:"10px",cursor:"pointer",
               fontFamily:"'JetBrains Mono',monospace",fontWeight:editMode?600:400,
-              transition:"all 0.2s"
-            }}>{editMode?"✓ Editing":"✎ Edit"}</button>
+              transition:"all 0.2s",minHeight:isMobile?"44px":"auto"
+            }}>{editMode?"✓":"✎"}{!isMobile&&(editMode?" Editing":" Edit")}</button>
           )}
-          <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{padding:"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace"}}>{theme==="dark"?"☀":"●"}</button>
-          {data&&<button onClick={handleExport} style={{padding:"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace"}}>↓ SVG</button>}
+          <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{padding:isMobile?"8px 10px":"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"44px":"auto"}}>{theme==="dark"?"☀":"●"}</button>
+          {data&&<button onClick={handleExport} style={{padding:isMobile?"8px 10px":"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"44px":"auto"}}>↓{!isMobile&&" SVG"}</button>}
         </div>
       </header>
 
       <div style={{display:"flex",minHeight:"calc(100vh - 47px)"}}>
-        <aside style={{width:"310px",borderRight:`1px solid ${T.bdr}`,padding:"10px",display:"flex",flexDirection:"column",gap:"7px",overflowY:"auto",flexShrink:0,background:T.srf}}>
+        {/* Mobile overlay */}
+        {isMobile&&drawerOpen&&(
+          <div onClick={()=>setDrawerOpen(false)} style={{
+            position:"fixed",inset:0,top:"47px",background:"rgba(0,0,0,0.5)",zIndex:40
+          }}/>
+        )}
+        <aside style={{
+          width:isMobile?"85vw":"310px",
+          maxWidth:isMobile?"320px":"none",
+          position:isMobile?"fixed":"relative",
+          left:isMobile?(drawerOpen?0:"-100%"):0,
+          top:isMobile?"47px":0,
+          height:isMobile?"calc(100vh - 47px)":"auto",
+          zIndex:isMobile?50:1,
+          transition:"left 0.3s ease",
+          borderRight:`1px solid ${T.bdr}`,padding:"10px",display:"flex",flexDirection:"column",gap:"7px",overflowY:"auto",flexShrink:0,background:T.srf
+        }}>
 
           <div style={{borderRadius:"5px",border:`1px solid ${T.bdr}`,overflow:"hidden"}}>
             <button onClick={()=>setShowCfg(v=>!v)} style={{width:"100%",padding:"6px 10px",background:"transparent",border:"none",color:T.ts,fontSize:"9px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",textAlign:"left",display:"flex",justifyContent:"space-between"}}>
@@ -597,7 +675,7 @@ export default function App() {
             {showCfg&&(
               <div style={{padding:"7px 10px",borderTop:`1px solid ${T.bdr}`,background:T.bg}}>
                 <div style={{display:"flex",gap:"3px",flexWrap:"wrap",marginBottom:"6px"}}>
-                  {Object.entries(PROVIDERS).map(([k,v])=>(<button key={k} onClick={()=>setProvider(k)} style={{padding:"3px 7px",borderRadius:"4px",border:`1px solid ${provider===k?"#3B82F6":T.bdr}`,background:provider===k?"rgba(59,130,246,0.1)":"transparent",color:provider===k?"#3B82F6":T.ts,fontSize:"8px",cursor:"pointer"}}>{v.name}</button>))}
+                  {Object.entries(PROVIDERS).map(([k,v])=>(<button key={k} onClick={()=>setProvider(k)} style={{padding:isMobile?"6px 10px":"3px 7px",borderRadius:"4px",border:`1px solid ${provider===k?"#3B82F6":T.bdr}`,background:provider===k?"rgba(59,130,246,0.1)":"transparent",color:provider===k?"#3B82F6":T.ts,fontSize:isMobile?"10px":"8px",cursor:"pointer",minHeight:isMobile?"36px":"auto"}}>{v.name}</button>))}
                 </div>
                 {P.hint&&<p style={{margin:"0 0 5px",fontSize:"8px",color:T.tm}}>{P.hint}</p>}
                 {P.fields.includes("apiKey")&&inp(P.keyLabel,"apiKey",P.placeholder,"password")}
@@ -620,7 +698,7 @@ export default function App() {
           <div>
             <label style={{fontSize:"8px",color:T.tm,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"1.5px",display:"block",marginBottom:"3px"}}>EXAMPLES</label>
             <div style={{display:"flex",gap:"3px",flexWrap:"wrap"}}>
-              {Object.entries(EXAMPLES).map(([k,ex])=>(<button key={k} onClick={()=>{setInput(ex.description);setActiveEx(k);}} style={{padding:"3px 7px",borderRadius:"4px",border:`1px solid ${activeEx===k?"#3B82F6":T.bdr}`,background:activeEx===k?"rgba(59,130,246,0.1)":"transparent",color:activeEx===k?"#3B82F6":T.ts,fontSize:"9px",cursor:"pointer"}}>{ex.title}</button>))}
+              {Object.entries(EXAMPLES).map(([k,ex])=>(<button key={k} onClick={()=>{setInput(ex.description);setActiveEx(k);if(isMobile)setDrawerOpen(false);}} style={{padding:isMobile?"6px 10px":"3px 7px",borderRadius:"4px",border:`1px solid ${activeEx===k?"#3B82F6":T.bdr}`,background:activeEx===k?"rgba(59,130,246,0.1)":"transparent",color:activeEx===k?"#3B82F6":T.ts,fontSize:isMobile?"10px":"9px",cursor:"pointer",minHeight:isMobile?"44px":"auto"}}>{ex.title}</button>))}
             </div>
           </div>
 
@@ -628,17 +706,17 @@ export default function App() {
             <label style={{fontSize:"8px",color:T.tm,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"1.5px",display:"block",marginBottom:"3px"}}>SOLUTION QUOTE</label>
             <textarea value={input} onChange={e=>{setInput(e.target.value);setActiveEx(null);}}
               placeholder="Paste solution description..."
-              style={{flex:1,minHeight:"170px",padding:"8px",borderRadius:"4px",border:`1px solid ${T.bdr}`,background:T.bg,color:T.text,fontSize:"10px",fontFamily:"'JetBrains Mono',monospace",lineHeight:"1.6",resize:"none",outline:"none"}}/>
+              style={{flex:1,minHeight:isMobile?"120px":"170px",padding:isMobile?"10px":"8px",borderRadius:"4px",border:`1px solid ${T.bdr}`,background:T.bg,color:T.text,fontSize:isMobile?"14px":"10px",fontFamily:"'JetBrains Mono',monospace",lineHeight:"1.6",resize:"none",outline:"none"}}/>
           </div>
 
-          <button onClick={()=>hasKey&&input.trim()&&generate(input.trim())} disabled={loading||!hasKey||!input.trim()}
-            style={{padding:"9px",borderRadius:"5px",border:"none",background:loading?T.bdr:"linear-gradient(135deg,#3B82F6,#6366F1)",color:"white",fontSize:"11px",fontWeight:600,cursor:loading||!hasKey||!input.trim()?"default":"pointer",opacity:(!hasKey||!input.trim())?0.4:1}}>
+          <button onClick={()=>{if(hasKey&&input.trim()){generate(input.trim());if(isMobile)setDrawerOpen(false);}}} disabled={loading||!hasKey||!input.trim()}
+            style={{padding:isMobile?"12px":"9px",borderRadius:"5px",border:"none",background:loading?T.bdr:"linear-gradient(135deg,#3B82F6,#6366F1)",color:"white",fontSize:isMobile?"12px":"11px",fontWeight:600,cursor:loading||!hasKey||!input.trim()?"default":"pointer",opacity:(!hasKey||!input.trim())?0.4:1,minHeight:isMobile?"48px":"auto"}}>
             {loading?<span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"6px"}}><span style={{width:"10px",height:"10px",border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid white",borderRadius:"50%",animation:"spin 0.8s linear infinite",display:"inline-block"}}/>Generating…</span>:`Generate via ${P.name}`}
           </button>
 
           {!hasKey&&input.trim()&&(
-            <button onClick={()=>{setData(DEMO[activeEx]||DEMO.smb);}}
-              style={{padding:"7px",borderRadius:"5px",border:`1px solid ${T.bdr}`,background:"transparent",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace"}}>
+            <button onClick={()=>{setData(DEMO[activeEx]||DEMO.smb);if(isMobile)setDrawerOpen(false);}}
+              style={{padding:isMobile?"10px":"7px",borderRadius:"5px",border:`1px solid ${T.bdr}`,background:"transparent",color:T.ts,fontSize:isMobile?"11px":"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"44px":"auto"}}>
               ▶ Demo (no key)
             </button>
           )}
@@ -664,7 +742,7 @@ export default function App() {
               <span>Icon Guide</span><span>{showIcons?"▾":"▸"}</span>
             </button>
             {showIcons&&(
-              <div style={{padding:"8px",borderTop:`1px solid ${T.bdr}`,background:T.bg,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px",maxHeight:"280px",overflowY:"auto"}}>
+              <div style={{padding:"8px",borderTop:`1px solid ${T.bdr}`,background:T.bg,display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(3,1fr)",gap:isMobile?"8px":"6px",maxHeight:"280px",overflowY:"auto"}}>
                 {Object.entries(CI).map(([name,Icon])=>(
                   <div key={name} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 4px",borderRadius:"4px",background:T.srf,border:`1px solid ${T.bdr}`}}>
                     <svg viewBox="0 0 48 36" width="32" height="24" style={{color:T.c[name]||T.ts}}><Icon/></svg>
@@ -676,7 +754,7 @@ export default function App() {
           </div>
         </aside>
 
-        <main ref={dRef} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"12px"}}>
+        <main ref={dRef} style={{flex:1,display:"flex",alignItems:isMobile?"flex-start":"center",justifyContent:"center",overflow:"auto",padding:isMobile?"8px":"12px",WebkitOverflowScrolling:"touch"}}>
           {!data&&!loading&&(
             <div style={{textAlign:"center",maxWidth:"400px",opacity:0.4}}>
               <p style={{fontSize:"13px",fontWeight:600,color:T.ts,margin:"0 0 8px"}}>Network Topology Agent</p>
@@ -689,7 +767,7 @@ export default function App() {
               <p style={{color:T.tm,fontSize:"11px",fontFamily:"'JetBrains Mono',monospace"}}>Generating via {P.name}…</p>
             </div>
           )}
-          {data&&<Topo data={data} setData={setData} cRef={dRef} theme={theme} editMode={editMode}/>}
+          {data&&<Topo data={data} setData={setData} cRef={dRef} theme={theme} editMode={editMode} isMobile={isMobile}/>}
         </main>
       </div>
 
