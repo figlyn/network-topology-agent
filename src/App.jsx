@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 const PROVIDERS = {
   anthropic: {
     name: "Anthropic", models: ["claude-sonnet-4-20250514","claude-haiku-4-5-20250929"],
-    defaultModel: "claude-sonnet-4-20250514", placeholder: "sk-ant-...", keyLabel: "API Key",
+    defaultModel: "claude-sonnet-4-20250514", placeholder: "optional - uses default key", keyLabel: "API Key (optional)",
     fields: ["apiKey"], docs: "https://console.anthropic.com/",
     call: async (prompt, system, cfg) => {
       const r = await fetch("/api/anthropic", { method:"POST",
@@ -548,7 +548,7 @@ export default function App() {
     const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download=`topology-${Date.now()}.svg`; a.click(); URL.revokeObjectURL(u);
   };
 
-  const hasKey=provider==="custom"?!!config.endpoint:!!config.apiKey;
+  const hasKey=provider==="custom"?!!config.endpoint:provider==="anthropic"||!!config.apiKey;
 
   const inp=(label,key,ph,type="text")=>(
     <div style={{marginBottom:"4px"}}>

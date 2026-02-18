@@ -1,5 +1,6 @@
 interface Env {
   ASSETS: Fetcher;
+  ANTHROPIC_API_KEY?: string;
 }
 
 const corsHeaders = {
@@ -21,7 +22,7 @@ export default {
     // Proxy /api/anthropic to Anthropic API
     if (url.pathname === "/api/anthropic" && request.method === "POST") {
       try {
-        const apiKey = request.headers.get("x-api-key");
+        const apiKey = request.headers.get("x-api-key") || env.ANTHROPIC_API_KEY;
         if (!apiKey) {
           return new Response(JSON.stringify({ error: { message: "API key required" } }), {
             status: 401,
