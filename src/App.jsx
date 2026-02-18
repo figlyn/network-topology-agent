@@ -7,8 +7,9 @@ const PROVIDERS = {
     defaultModel: "claude-sonnet-4-20250514", placeholder: "optional - uses default key", keyLabel: "API Key (optional)",
     fields: ["apiKey"], docs: "https://console.anthropic.com/",
     call: async (prompt, system, cfg) => {
-      const r = await fetch("/api/anthropic", { method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":cfg.apiKey},
+      const headers = {"Content-Type":"application/json"};
+      if (cfg.apiKey) headers["x-api-key"] = cfg.apiKey;
+      const r = await fetch("/api/anthropic", { method:"POST", headers,
         body: JSON.stringify({model:cfg.model,max_tokens:4096,system,messages:[{role:"user",content:prompt}]})
       }); const d=await r.json(); if(d.error)throw new Error(d.error.message); return d.content?.map(c=>c.text||"").join("")||"";
     }

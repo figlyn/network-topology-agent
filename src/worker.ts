@@ -22,7 +22,8 @@ export default {
     // Proxy /api/anthropic to Anthropic API
     if (url.pathname === "/api/anthropic" && request.method === "POST") {
       try {
-        const apiKey = request.headers.get("x-api-key") || env.ANTHROPIC_API_KEY;
+        const headerKey = request.headers.get("x-api-key")?.trim();
+        const apiKey = headerKey || env.ANTHROPIC_API_KEY;
         if (!apiKey) {
           return new Response(JSON.stringify({ error: { message: "API key required" } }), {
             status: 401,
