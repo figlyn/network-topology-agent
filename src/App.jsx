@@ -637,15 +637,15 @@ export default function App() {
         <div style={{display:"flex",gap:isMobile?"4px":"5px",alignItems:"center"}}>
           {data && (
             <button onClick={()=>setEditMode(v=>!v)} style={{
-              padding:isMobile?"8px 10px":"5px 12px",background:editMode?"rgba(59,130,246,0.15)":"transparent",
+              padding:isMobile?"10px 14px":"5px 12px",background:editMode?"rgba(59,130,246,0.15)":"transparent",
               border:`1px solid ${editMode?T.selStroke:T.bdr}`,borderRadius:"5px",
-              color:editMode?T.selStroke:T.ts,fontSize:"10px",cursor:"pointer",
+              color:editMode?T.selStroke:T.ts,fontSize:isMobile?"18px":"10px",cursor:"pointer",
               fontFamily:"'JetBrains Mono',monospace",fontWeight:editMode?600:400,
-              transition:"all 0.2s",minHeight:isMobile?"44px":"auto"
+              transition:"all 0.2s",minHeight:isMobile?"48px":"auto"
             }}>{editMode?"✓":"✎"}{!isMobile&&(editMode?" Editing":" Edit")}</button>
           )}
-          <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{padding:isMobile?"8px 10px":"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"44px":"auto"}}>{theme==="dark"?"☀":"●"}</button>
-          {data&&<button onClick={handleExport} style={{padding:isMobile?"8px 10px":"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"44px":"auto"}}>↓{!isMobile&&" SVG"}</button>}
+          <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{padding:isMobile?"10px 14px":"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:isMobile?"18px":"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"48px":"auto"}}>{theme==="dark"?"☀":"●"}</button>
+          {data&&<button onClick={handleExport} style={{padding:isMobile?"10px 14px":"5px 10px",background:"transparent",border:`1px solid ${T.bdr}`,borderRadius:"5px",color:T.ts,fontSize:isMobile?"18px":"10px",cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",minHeight:isMobile?"48px":"auto"}}>↓{!isMobile&&" SVG"}</button>}
         </div>
       </header>
 
