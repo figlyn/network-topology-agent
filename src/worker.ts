@@ -1,12 +1,11 @@
 interface Env {
-  ANTHROPIC_API_KEY: string;
   ASSETS: Fetcher;
 }
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-api-key",
   "Content-Type": "application/json",
 };
 
@@ -22,13 +21,21 @@ export default {
     // Proxy /api/anthropic to Anthropic API
     if (url.pathname === "/api/anthropic" && request.method === "POST") {
       try {
+        const apiKey = request.headers.get("x-api-key");
+        if (!apiKey) {
+          return new Response(JSON.stringify({ error: { message: "API key required" } }), {
+            status: 401,
+            headers: corsHeaders,
+          });
+        }
+
         const body = await request.json();
 
         const response = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": env.ANTHROPIC_API_KEY,
+            "x-api-key": apiKey,
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify(body),
@@ -40,7 +47,7 @@ export default {
           headers: corsHeaders,
         });
       } catch (error) {
-        return new Response(JSON.stringify({ error: "Proxy error" }), {
+        return new Response(JSON.stringify({ error: { message: "Proxy error" } }), {
           status: 500,
           headers: corsHeaders,
         });
