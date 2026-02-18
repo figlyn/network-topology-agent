@@ -49,3 +49,37 @@ The entire application lives in `src/App.jsx` (~700 lines) with these key module
 ## Demo Mode
 
 Three pre-built examples available without API key: Bank SD-WAN, 5G Manufacturing, AI Startup. Activated via toggle in settings panel.
+
+## Cloudflare Workers Deployment
+
+The app is deployed to Cloudflare Workers with a proxy layer to handle CORS restrictions.
+
+**Deployment commands:**
+```bash
+npm run build && npx wrangler deploy
+```
+
+**Live URL:** https://nwgrm.org
+
+**Configuration:** `wrangler.jsonc` defines the Worker entry point and static assets binding.
+
+## API Proxy Architecture
+
+Browser-based apps cannot call LLM APIs directly due to CORS. The Worker (`src/worker.ts`) proxies requests:
+
+| Frontend Endpoint | Proxies To |
+|-------------------|------------|
+| `/api/anthropic` | `api.anthropic.com/v1/messages` |
+| `/api/openai` | `api.openai.com/v1/chat/completions` |
+| `/api/gemini/:model` | `generativelanguage.googleapis.com/v1beta/models/:model` |
+
+**Anthropic API Key Fallback:**
+- If user provides a key in the UI → uses that key
+- If no key provided → falls back to `ANTHROPIC_API_KEY` Cloudflare secret
+- Set the secret: `npx wrangler secret put ANTHROPIC_API_KEY`
+
+**Debug logging:** The worker logs API key source (user-provided, env-secret, or none). View with `npx wrangler tail`.
+
+## GitHub Repository
+
+https://github.com/figlyn/network-topology-agent
