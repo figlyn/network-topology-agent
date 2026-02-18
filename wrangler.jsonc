@@ -24,7 +24,7 @@
   "env": {
     "staging": {
       "name": "network-topology-agent-staging",
-      "routes": [{ "pattern": "staging.nwgrm.org", "zone_name": "nwgrm.org" }]
+      "routes": [{ "pattern": "staging.nwgrm.org/*", "zone_name": "nwgrm.org" }]
     }
   }
 }

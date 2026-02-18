@@ -702,11 +702,11 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{flex:1,display:"flex",flexDirection:"column"}}>
+          <div style={{display:"flex",flexDirection:"column"}}>
             <label style={{fontSize:"8px",color:T.tm,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"1.5px",display:"block",marginBottom:"3px"}}>SOLUTION QUOTE</label>
             <textarea value={input} onChange={e=>{setInput(e.target.value);setActiveEx(null);}}
               placeholder="Paste solution description..."
-              style={{flex:1,minHeight:isMobile?"120px":"170px",padding:isMobile?"10px":"8px",borderRadius:"4px",border:`1px solid ${T.bdr}`,background:T.bg,color:T.text,fontSize:isMobile?"14px":"10px",fontFamily:"'JetBrains Mono',monospace",lineHeight:"1.6",resize:"none",outline:"none"}}/>
+              style={{minHeight:isMobile?"120px":"170px",maxHeight:isMobile?"200px":"none",flex:isMobile?"none":1,padding:isMobile?"10px":"8px",borderRadius:"4px",border:`1px solid ${T.bdr}`,background:T.bg,color:T.text,fontSize:isMobile?"14px":"10px",fontFamily:"'JetBrains Mono',monospace",lineHeight:"1.6",resize:"none",outline:"none"}}/>
           </div>
 
           <button onClick={()=>{if(hasKey&&input.trim()){generate(input.trim());if(isMobile)setDrawerOpen(false);}}} disabled={loading||!hasKey||!input.trim()}
