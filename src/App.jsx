@@ -18,7 +18,7 @@ const PROVIDERS = {
     defaultModel: "gpt-4o", placeholder: "sk-...", keyLabel: "API Key",
     fields: ["apiKey"], docs: "https://platform.openai.com/api-keys",
     call: async (prompt, system, cfg) => {
-      const r = await fetch("https://api.openai.com/v1/chat/completions", { method:"POST",
+      const r = await fetch("/api/openai", { method:"POST",
         headers:{"Content-Type":"application/json","Authorization":`Bearer ${cfg.apiKey}`},
         body: JSON.stringify({model:cfg.model,messages:[{role:"system",content:system},{role:"user",content:prompt}],max_tokens:4096,temperature:0.3})
       }); const d=await r.json(); if(d.error)throw new Error(d.error.message); return d.choices?.[0]?.message?.content||"";
@@ -40,7 +40,7 @@ const PROVIDERS = {
     defaultModel: "gemini-2.0-flash", placeholder: "AI...", keyLabel: "API Key",
     fields: ["apiKey"], docs: "https://aistudio.google.com/apikey",
     call: async (prompt, system, cfg) => {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${cfg.apiKey}`;
+      const url = `/api/gemini/${cfg.model}?key=${cfg.apiKey}`;
       const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({system_instruction:{parts:[{text:system}]},contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:4096,temperature:0.3}})
       }); const d=await r.json(); if(d.error)throw new Error(d.error.message); return d.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
