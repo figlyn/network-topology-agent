@@ -1,16 +1,10 @@
-import { handleMcpHttp } from "./mcp-server";
+import { handleMcpHttp, handleRenderRequest } from "./mcp-server";
+import { corsHeaders, corsResponse, jsonResponse, errorResponse } from "./cors";
 
 interface Env {
   ASSETS: Fetcher;
   ANTHROPIC_API_KEY?: string;
 }
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
-  "Content-Type": "application/json",
-};
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -18,12 +12,17 @@ export default {
 
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return corsResponse();
     }
 
     // MCP endpoint for ChatGPT Apps
     if (url.pathname === "/mcp") {
       return handleMcpHttp(request);
+    }
+
+    // Direct SVG render endpoint (for image URLs)
+    if (url.pathname === "/render") {
+      return handleRenderRequest(request);
     }
 
     // Proxy /api/anthropic to Anthropic API
@@ -34,15 +33,10 @@ export default {
 
         // Debug logging
         console.log("API Key source:", headerKey ? "user-provided" : (env.ANTHROPIC_API_KEY ? "env-secret" : "none"));
-        console.log("Header key present:", !!headerKey);
-        console.log("Env key present:", !!env.ANTHROPIC_API_KEY);
 
         if (!apiKey) {
           console.log("ERROR: No API key available");
-          return new Response(JSON.stringify({ error: { message: "API key required" } }), {
-            status: 401,
-            headers: corsHeaders,
-          });
+          return errorResponse("API key required", 401);
         }
 
         const body = await request.json();
@@ -58,15 +52,9 @@ export default {
         });
 
         const data = await response.json();
-        return new Response(JSON.stringify(data), {
-          status: response.status,
-          headers: corsHeaders,
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({ error: { message: "Proxy error" } }), {
-          status: 500,
-          headers: corsHeaders,
-        });
+        return jsonResponse(data, response.status);
+      } catch {
+        return errorResponse("Proxy error", 500);
       }
     }
 
@@ -75,10 +63,7 @@ export default {
       try {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader) {
-          return new Response(JSON.stringify({ error: { message: "API key required" } }), {
-            status: 401,
-            headers: corsHeaders,
-          });
+          return errorResponse("API key required", 401);
         }
 
         const body = await request.json();
@@ -93,15 +78,9 @@ export default {
         });
 
         const data = await response.json();
-        return new Response(JSON.stringify(data), {
-          status: response.status,
-          headers: corsHeaders,
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({ error: { message: "Proxy error" } }), {
-          status: 500,
-          headers: corsHeaders,
-        });
+        return jsonResponse(data, response.status);
+      } catch {
+        return errorResponse("Proxy error", 500);
       }
     }
 
@@ -111,10 +90,7 @@ export default {
         const model = url.pathname.replace("/api/gemini/", "");
         const apiKey = url.searchParams.get("key");
         if (!apiKey) {
-          return new Response(JSON.stringify({ error: { message: "API key required" } }), {
-            status: 401,
-            headers: corsHeaders,
-          });
+          return errorResponse("API key required", 401);
         }
 
         const body = await request.json();
@@ -131,15 +107,9 @@ export default {
         );
 
         const data = await response.json();
-        return new Response(JSON.stringify(data), {
-          status: response.status,
-          headers: corsHeaders,
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({ error: { message: "Proxy error" } }), {
-          status: 500,
-          headers: corsHeaders,
-        });
+        return jsonResponse(data, response.status);
+      } catch {
+        return errorResponse("Proxy error", 500);
       }
     }
 

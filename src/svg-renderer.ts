@@ -1,30 +1,11 @@
 // Pure SVG renderer for network topology (no React dependency)
 
-export interface TopologyNode {
-  id: string;
-  type: string;
-  label: string;
-  count?: number;
-  params?: string[];
-  position?: "ingress" | "core" | "egress";
-}
+// Re-export types from schemas for backward compatibility
+export type { TopologyData, CustomerNode, OperatorNode, ExternalNode, Connection } from "./schemas";
+import type { TopologyData, CustomerNode, OperatorNode, ExternalNode } from "./schemas";
 
-export interface TopologyConnection {
-  from: string;
-  to: string;
-  label?: string;
-  style?: "solid" | "dashed" | "double";
-}
-
-export interface TopologyData {
-  solutionTitle: string;
-  customer: string;
-  industry: string;
-  customerNodes: TopologyNode[];
-  operatorNodes: TopologyNode[];
-  externalNodes: TopologyNode[];
-  connections: TopologyConnection[];
-}
+// Combined node type for internal use
+type TopologyNode = CustomerNode | OperatorNode | ExternalNode;
 
 // Cisco-style icon paths (viewBox 0 0 48 36)
 const ICONS: Record<string, string> = {
@@ -78,14 +59,14 @@ function cloudPath(cx: number, cy: number, w: number, h: number): string {
 interface Position { x: number; y: number; cx: number; cy: number; }
 
 function computeLayout(data: TopologyData, w: number, h: number) {
-  const pad = { t: 85, b: 50 };
-  const iW = 50, iH = 38;
-  const nodeH = 95;
-  const custColX = 40, custColW = 140;
-  const opLeft = custColX + custColW + 80;
-  const opRight = w - 220;
+  const pad = { t: 130, b: 80 };
+  const iW = 90, iH = 68;
+  const nodeH = 160;
+  const custColX = 60, custColW = 220;
+  const opLeft = custColX + custColW + 120;
+  const opRight = w - 340;
   const opW = opRight - opLeft;
-  const extColX = opRight + 80, extColW = 140;
+  const extColX = opRight + 120, extColW = 220;
   const opInX = opLeft + opW * 0.12;
   const opCoreX = opLeft + opW * 0.48;
   const opEgX = opLeft + opW * 0.84;
@@ -117,7 +98,7 @@ function computeLayout(data: TopologyData, w: number, h: number) {
 }
 
 export function renderTopologySVG(data: TopologyData): string {
-  const w = 1300, h = 800;
+  const w = 1600, h = 1000;
   const layout = computeLayout(data, w, h);
   const { pos, zones, iW, iH, opLeft, opRight, opCX, opCY, opW, pad, custColX, custColW, extColX, extColW } = layout;
   const opCloudH = h - pad.t - pad.b + 20;
@@ -150,30 +131,27 @@ export function renderTopologySVG(data: TopologyData): string {
   // Build SVG
   let svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
 <defs>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap');
-  </style>
-  <pattern id="tgrid" width="20" height="20" patternUnits="userSpaceOnUse">
-    <circle cx="10" cy="10" r="0.4" fill="${T.tf}" opacity="0.3"/>
+  <pattern id="tgrid" width="28" height="28" patternUnits="userSpaceOnUse">
+    <circle cx="14" cy="14" r="0.6" fill="${T.tf}" opacity="0.3"/>
   </pattern>
-  <marker id="ah" markerWidth="6" markerHeight="5" refX="5.5" refY="2.5" orient="auto">
-    <polygon points="0 0.5,5.5 2.5,0 4.5" fill="${T.tm}" opacity="0.5"/>
+  <marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+    <polygon points="0 0.5,9 4,0 7.5" fill="${T.tm}" opacity="0.5"/>
   </marker>
 </defs>
 <rect width="${w}" height="${h}" fill="url(#tgrid)"/>
 <rect width="${w}" height="${h}" fill="${T.bg}" opacity="0.95"/>
 
 <!-- Title -->
-<text x="${w / 2}" y="26" text-anchor="middle" fill="${T.text}" font-size="17" font-weight="700" font-family="'DM Sans',sans-serif">${escapeXml(data.solutionTitle)}</text>
-<text x="${w / 2}" y="44" text-anchor="middle" fill="${T.tm}" font-size="10" font-family="'JetBrains Mono',monospace">${escapeXml(data.customer)} · ${escapeXml(data.industry)}</text>
+<text x="${w / 2}" y="42" text-anchor="middle" fill="${T.text}" font-size="32" font-weight="700" font-family="Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif">${escapeXml(data.solutionTitle)}</text>
+<text x="${w / 2}" y="70" text-anchor="middle" fill="${T.tm}" font-size="18" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace">${escapeXml(data.customer)} · ${escapeXml(data.industry)}</text>
 
 <!-- Zone labels -->
-<text x="${custColX + custColW / 2}" y="${pad.t - 14}" text-anchor="middle" fill="${T.tf}" font-size="8" font-family="'JetBrains Mono',monospace" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>
-<text x="${opCX}" y="${pad.t - 14}" text-anchor="middle" fill="${T.opLabel}" font-size="8" font-family="'JetBrains Mono',monospace" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>
-<text x="${extColX + extColW / 2}" y="${pad.t - 14}" text-anchor="middle" fill="${T.tf}" font-size="8" font-family="'JetBrains Mono',monospace" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>
+<text x="${custColX + custColW / 2}" y="${pad.t - 22}" text-anchor="middle" fill="${T.tf}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2.5" font-weight="600">CUSTOMER PREMISES</text>
+<text x="${opCX}" y="${pad.t - 22}" text-anchor="middle" fill="${T.opLabel}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2.5" font-weight="600">OPERATOR NETWORK</text>
+<text x="${extColX + extColW / 2}" y="${pad.t - 22}" text-anchor="middle" fill="${T.tf}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2.5" font-weight="600">EXTERNAL SERVICES</text>
 
 <!-- Operator cloud -->
-<path d="${cloudPath(opCX, opCY, opW + 60, opCloudH)}" fill="${T.opFill}" stroke="${T.opStroke}" stroke-width="2" stroke-dasharray="8,5"/>
+<path d="${cloudPath(opCX, opCY, opW + 100, opCloudH)}" fill="${T.opFill}" stroke="${T.opStroke}" stroke-width="3" stroke-dasharray="12,7"/>
 `;
 
   // Connections
@@ -182,24 +160,24 @@ export function renderTopologySVG(data: TopologyData): string {
     if (!r) continue;
     const fn = allNodes.find(n => n.id === conn.from);
     const cc = COLORS[fn?.type || ""] || T.tm;
-    const dash = conn.style === "dashed" ? "5,4" : "none";
-    const sw = conn.style === "double" ? 2.5 : 1.4;
+    const dash = conn.style === "dashed" ? "9,6" : "none";
+    const sw = conn.style === "double" ? 4 : 2.5;
 
     if (conn.style === "double") {
-      svg += `<path d="${r.pathD}" fill="none" stroke="${cc}" stroke-width="6" opacity="0.06"/>\n`;
+      svg += `<path d="${r.pathD}" fill="none" stroke="${cc}" stroke-width="10" opacity="0.06"/>\n`;
     }
     svg += `<path d="${r.pathD}" fill="none" stroke="${cc}" stroke-width="${sw}" stroke-dasharray="${dash}" opacity="0.5" marker-end="url(#ah)"/>\n`;
 
     if (r.crossIn) {
-      svg += `<circle cx="${opLeft}" cy="${(r.sy + r.ey) / 2}" r="3" fill="${cc}" opacity="0.4" stroke="${T.opStroke}" stroke-width="1"/>\n`;
+      svg += `<circle cx="${opLeft}" cy="${(r.sy + r.ey) / 2}" r="5" fill="${cc}" opacity="0.4" stroke="${T.opStroke}" stroke-width="2"/>\n`;
     }
     if (r.crossOut) {
-      svg += `<circle cx="${opRight}" cy="${(r.sy + r.ey) / 2}" r="3" fill="${cc}" opacity="0.4" stroke="${T.opStroke}" stroke-width="1"/>\n`;
+      svg += `<circle cx="${opRight}" cy="${(r.sy + r.ey) / 2}" r="5" fill="${cc}" opacity="0.4" stroke="${T.opStroke}" stroke-width="2"/>\n`;
     }
     if (conn.label) {
-      const lw = conn.label.length * 5.6 + 12;
-      svg += `<rect x="${r.mx - lw / 2}" y="${r.my - 8}" width="${lw}" height="15" rx="7.5" fill="${T.clbg}" stroke="${T.bdr}" stroke-width="0.5" opacity="0.93"/>\n`;
-      svg += `<text x="${r.mx}" y="${r.my + 3}" text-anchor="middle" fill="${T.cl}" font-size="7.5" font-family="'JetBrains Mono',monospace" font-weight="500">${escapeXml(conn.label)}</text>\n`;
+      const lw = conn.label.length * 9 + 20;
+      svg += `<rect x="${r.mx - lw / 2}" y="${r.my - 12}" width="${lw}" height="24" rx="12" fill="${T.clbg}" stroke="${T.bdr}" stroke-width="0.5" opacity="0.93"/>\n`;
+      svg += `<text x="${r.mx}" y="${r.my + 5}" text-anchor="middle" fill="${T.cl}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" font-weight="500">${escapeXml(conn.label)}</text>\n`;
     }
   }
 
@@ -211,21 +189,21 @@ export function renderTopologySVG(data: TopologyData): string {
     const iconSvg = ICONS[nd.type] || ICONS.cloud;
     const params = (nd.params || []).slice(0, 3);
     const isOp = (zones[nd.id] || "").startsWith("op_");
-    const ly = p.cy + iH / 2 + 11;
+    const ly = p.cy + iH / 2 + 20;
 
     svg += `<g>
   <svg x="${p.cx - iW / 2}" y="${p.cy - iH / 2}" width="${iW}" height="${iH}" viewBox="0 0 48 36" style="color:${col};overflow:visible">${iconSvg.replace(/currentColor/g, col)}</svg>
-  <text x="${p.cx}" y="${ly}" text-anchor="middle" fill="${isOp ? T.opLabel : T.text}" font-size="10" font-weight="600" font-family="'DM Sans',sans-serif">${escapeXml(nd.label)}${nd.count && nd.count > 1 ? ` (×${nd.count})` : ""}</text>
+  <text x="${p.cx}" y="${ly}" text-anchor="middle" fill="${isOp ? T.opLabel : T.text}" font-size="18" font-weight="600" font-family="Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif">${escapeXml(nd.label)}${nd.count && nd.count > 1 ? ` (×${nd.count})` : ""}</text>
 `;
     for (let i = 0; i < params.length; i++) {
-      svg += `  <text x="${p.cx}" y="${ly + 12 + i * 11}" text-anchor="middle" fill="${T.ts}" font-size="8" font-family="'JetBrains Mono',monospace" opacity="0.7">${escapeXml(params[i])}</text>\n`;
+      svg += `  <text x="${p.cx}" y="${ly + 20 + i * 18}" text-anchor="middle" fill="${T.ts}" font-size="15" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" opacity="0.7">${escapeXml(params[i])}</text>\n`;
     }
     svg += `</g>\n`;
   }
 
   // Footer labels
-  svg += `<text x="${opLeft}" y="${h - pad.b + 18}" text-anchor="middle" fill="${T.opLabel}" font-size="7" font-family="'JetBrains Mono',monospace" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>
-<text x="${opRight}" y="${h - pad.b + 18}" text-anchor="middle" fill="${T.opLabel}" font-size="7" font-family="'JetBrains Mono',monospace" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>
+  svg += `<text x="${opLeft}" y="${h - pad.b + 30}" text-anchor="middle" fill="${T.opLabel}" font-size="13" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2" opacity="0.5">▸ INGRESS</text>
+<text x="${opRight}" y="${h - pad.b + 30}" text-anchor="middle" fill="${T.opLabel}" font-size="13" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2" opacity="0.5">EGRESS ▸</text>
 </svg>`;
 
   return svg;
@@ -234,71 +212,3 @@ export function renderTopologySVG(data: TopologyData): string {
 function escapeXml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-
-// JSON Schema for the topology (for ChatGPT to understand)
-export const TOPOLOGY_SCHEMA = {
-  type: "object",
-  required: ["solutionTitle", "customer", "industry", "customerNodes", "operatorNodes", "externalNodes", "connections"],
-  properties: {
-    solutionTitle: { type: "string", description: "Short title for the solution" },
-    customer: { type: "string", description: "Customer name" },
-    industry: { type: "string", description: "Industry vertical" },
-    customerNodes: {
-      type: "array",
-      description: "Customer premises nodes (max 5). Group similar sites.",
-      items: {
-        type: "object",
-        required: ["id", "type", "label"],
-        properties: {
-          id: { type: "string", description: "Unique identifier" },
-          type: { type: "string", enum: ["hq_building", "branch", "small_site", "factory", "data_center", "users", "iot_gateway", "phone"] },
-          label: { type: "string", description: "Display name (max 20 chars)" },
-          count: { type: "number", description: "Number of similar sites (e.g., 85 branches)" },
-          params: { type: "array", items: { type: "string" }, description: "2-3 specs like '10G DIA', 'WiFi 6'" }
-        }
-      }
-    },
-    operatorNodes: {
-      type: "array",
-      description: "Operator network nodes (max 5). MUST set position.",
-      items: {
-        type: "object",
-        required: ["id", "type", "label", "position"],
-        properties: {
-          id: { type: "string" },
-          type: { type: "string", enum: ["router", "switch", "firewall", "sdwan", "security_cloud", "vpn", "cell_tower", "mec", "load_balancer", "mpls", "data_center", "wireless_ap"] },
-          label: { type: "string" },
-          position: { type: "string", enum: ["ingress", "core", "egress"], description: "ingress=access-facing, core=internal, egress=peering" },
-          params: { type: "array", items: { type: "string" } }
-        }
-      }
-    },
-    externalNodes: {
-      type: "array",
-      description: "External services (max 5)",
-      items: {
-        type: "object",
-        required: ["id", "type", "label"],
-        properties: {
-          id: { type: "string" },
-          type: { type: "string", enum: ["cloud", "saas", "internet", "server", "data_center"] },
-          label: { type: "string" },
-          params: { type: "array", items: { type: "string" } }
-        }
-      }
-    },
-    connections: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["from", "to"],
-        properties: {
-          from: { type: "string", description: "Source node ID" },
-          to: { type: "string", description: "Target node ID" },
-          label: { type: "string", description: "Concise label like '10G DIA', 'MPLS'" },
-          style: { type: "string", enum: ["solid", "dashed", "double"], description: "solid=primary, dashed=backup, double=redundant" }
-        }
-      }
-    }
-  }
-};
