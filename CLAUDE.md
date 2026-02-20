@@ -80,6 +80,59 @@ Browser-based apps cannot call LLM APIs directly due to CORS. The Worker (`src/w
 
 **Debug logging:** The worker logs API key source (user-provided, env-secret, or none). View with `npx wrangler tail`.
 
+## ChatGPT Apps Integration (chatgpt-image-app branch)
+
+Native ChatGPT integration using MCP protocol. ChatGPT generates topology JSON, the server renders it to SVG image.
+
+**Staging URL:** https://staging.nwgrm.org
+
+**MCP Endpoint:** https://staging.nwgrm.org/mcp
+
+### Architecture
+
+```
+ChatGPT → generates topology JSON → calls render_topology tool → SVG image returned
+```
+
+### MCP Tool
+
+| Tool | Description |
+|------|-------------|
+| `render_topology` | Render topology JSON to SVG image |
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `src/svg-renderer.ts` | Pure TypeScript SVG renderer (no React) |
+| `src/mcp-server.ts` | MCP protocol handler with render_topology tool |
+| `src/worker.ts` | Cloudflare Worker with `/mcp` endpoint |
+
+### Connecting to ChatGPT
+
+1. Enable developer mode in ChatGPT: **Settings → Apps & Connectors → Advanced settings**
+2. Create connector: **Settings → Connectors** with URL `https://staging.nwgrm.org/mcp`
+3. Add to conversation via the **More** menu
+4. Ask ChatGPT to generate a topology - it will create the JSON and call the tool
+
+### Testing MCP Endpoint
+
+```bash
+# Initialize
+curl -X POST https://staging.nwgrm.org/mcp -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}'
+
+# List tools
+curl -X POST https://staging.nwgrm.org/mcp -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+```
+
+### Deploy to Staging
+
+```bash
+npm run deploy:staging
+```
+
 ## GitHub Repository
 
 https://github.com/figlyn/network-topology-agent

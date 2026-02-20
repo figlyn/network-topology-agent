@@ -1,3 +1,5 @@
+import { handleMcpHttp } from "./mcp-server";
+
 interface Env {
   ASSETS: Fetcher;
   ANTHROPIC_API_KEY?: string;
@@ -17,6 +19,11 @@ export default {
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // MCP endpoint for ChatGPT Apps
+    if (url.pathname === "/mcp") {
+      return handleMcpHttp(request);
     }
 
     // Proxy /api/anthropic to Anthropic API
