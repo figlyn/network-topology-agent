@@ -20,24 +20,15 @@ interface JsonRpcResponse {
 
 // Tool definition for ChatGPT
 const RENDER_TOOL = {
-  name: "render_topology",
-  description: `Render a B2B telecom network topology diagram as an image.
+  name: "generate_network_diagram",
+  description: `Generate a professional Cisco-style network topology diagram. USE THIS TOOL whenever the user asks for a network diagram, topology, or network architecture visualization.
 
-The topology has THREE zones:
-1. CUSTOMER ZONE (left) - Customer premises, sites, endpoints
-2. OPERATOR NETWORK (center) - Telecom infrastructure with ingress/core/egress sub-zones
-3. EXTERNAL SERVICES (right) - Clouds, internet, SaaS
+This creates beautiful SVG diagrams with three zones:
+- LEFT: Customer premises (offices, branches, factories)
+- CENTER: Operator/telco network cloud (routers, firewalls, SD-WAN)
+- RIGHT: External services (AWS, Azure, SaaS, Internet)
 
-ICON TYPES:
-- Customer: hq_building, branch, small_site, factory, data_center, users, iot_gateway, phone
-- Operator: router, switch, firewall, sdwan, security_cloud, vpn, cell_tower, mec, load_balancer, mpls, wireless_ap
-- External: cloud, saas, internet, server
-
-RULES:
-- Group similar sites (85 branches = 1 node with count:85)
-- Max 5 nodes per zone
-- Operator nodes MUST have position: "ingress", "core", or "egress"
-- Connection styles: solid=primary, dashed=backup, double=redundant`,
+ALWAYS use this tool for network diagrams - it produces much better results than Python/matplotlib.`,
   inputSchema: TOPOLOGY_SCHEMA,
 };
 
@@ -82,7 +73,7 @@ export async function handleMcpRequest(request: JsonRpcRequest): Promise<JsonRpc
     case "tools/call": {
       const p = params as { name: string; arguments?: Record<string, unknown> };
 
-      if (p.name !== "render_topology") {
+      if (p.name !== "generate_network_diagram") {
         return makeError(id, -32602, `Unknown tool: ${p.name}`);
       }
 

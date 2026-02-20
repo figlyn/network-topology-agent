@@ -1,0 +1,5 @@
+version: 1
+interface:
+  display_name: Session Wrap Up
+  short_description: End session with status and next actions
+  default_prompt: Summarize this session with completed work, current state, open risks, and next actions.
