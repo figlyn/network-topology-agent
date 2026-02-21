@@ -94,12 +94,27 @@ npm run test:run && npm run typecheck
 
 ## Current Issue
 
-**Testing v27** - Awaiting tester verification.
+**v27 FAILED** - Connections still not rendering.
 
-v27 implements event-based connection rendering:
-- Nodes render immediately during streaming (good UX)
-- Connections only render AFTER `ui/notifications/tool-result` event fires
-- This solves the incomplete connections issue during JSON streaming
+### Attempted Fixes (all failed):
+
+| Version | Approach | Result |
+|---------|----------|--------|
+| v23 | Read `toolOutput.topology` instead of `toolInput` | `toolOutput` undefined |
+| v24-25 | Include topology in `structuredContent` | `toolOutput` still undefined |
+| v26 | Add `openai/outputTemplate` and `openai/widgetAccessible` to `_meta` | No change |
+| v27 | Event-based: render connections only after `tool-result` fires | Still no connections |
+
+### Key Observations:
+- **Old chats show connections correctly** - when revisiting a completed chat, all connections render
+- **New/streaming chats fail** - connections missing during and after streaming
+- `toolOutput` is never populated despite following SDK documentation
+- `toolInput` has incomplete data during streaming (missing `to` fields)
+
+### Next Steps to Investigate:
+1. Why does `toolOutput` remain undefined/false?
+2. Is there a different event or timing we're missing?
+3. Check if old chat data comes from a different source than live streaming
 
 ## Widget Version History
 
