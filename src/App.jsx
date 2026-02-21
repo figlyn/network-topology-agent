@@ -584,6 +584,25 @@ export default function App() {
     return ()=>window.removeEventListener('resize',handleResize);
   },[]);
 
+  // Load topology from URL param (for ChatGPT edit links)
+  useEffect(()=>{
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const topologyParam = params.get('topology');
+      if (topologyParam) {
+        const decoded = JSON.parse(atob(topologyParam));
+        if (decoded.customerNodes && decoded.operatorNodes && decoded.externalNodes) {
+          setData(decoded);
+          setEditMode(true);
+          // Clean URL without reload
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load topology from URL:', e);
+    }
+  }, []);
+
   const generate=useCallback(async(desc)=>{
     setLoading(true);setError(null);setData(null);setEditMode(false);
     try{
