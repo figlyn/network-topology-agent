@@ -1,5 +1,10 @@
 import { handleMcpHttp, handleRenderRequest } from "./mcp-server";
-import { corsHeaders, corsResponse, jsonResponse, errorResponse } from "./cors";
+import { corsResponse, jsonResponse, errorResponse } from "./cors";
+
+// Cloudflare Workers types
+interface Fetcher {
+  fetch(request: Request): Promise<Response>;
+}
 
 interface Env {
   ASSETS: Fetcher;

@@ -2,7 +2,7 @@
 
 // Re-export types from schemas for backward compatibility
 export type { TopologyData, CustomerNode, OperatorNode, ExternalNode, Connection } from "./schemas";
-import type { TopologyData, CustomerNode, OperatorNode, ExternalNode } from "./schemas";
+import type { TopologyData, CustomerNode, OperatorNode, ExternalNode, Connection } from "./schemas";
 
 // Combined node type for internal use
 type TopologyNode = CustomerNode | OperatorNode | ExternalNode;
@@ -105,7 +105,7 @@ export function renderTopologySVG(data: TopologyData): string {
   const allNodes = [...data.customerNodes, ...data.operatorNodes, ...data.externalNodes];
 
   // Route connection
-  function routeConn(conn: TopologyConnection) {
+  function routeConn(conn: Connection) {
     const f = pos[conn.from], t = pos[conn.to];
     if (!f || !t) return null;
     let sx: number, sy: number, ex: number, ey: number;

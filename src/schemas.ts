@@ -90,8 +90,9 @@ export function validateTopology(data: unknown): { success: true; data: Topology
   if (result.success) {
     return { success: true, data: result.data };
   }
-  const firstError = result.error.errors[0];
-  const path = firstError?.path.join(".") || "root";
-  const message = firstError?.message || "Invalid data";
-  return { success: false, error: `${path}: ${message}` };
+  // Zod v4 uses 'issues' instead of 'errors'
+  const firstIssue = result.error.issues?.[0];
+  const path = firstIssue?.path?.join(".") || "root";
+  const message = firstIssue?.message || "Invalid data";
+  return { success: false, error: path ? `${path}: ${message}` : message };
 }

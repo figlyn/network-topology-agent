@@ -18,7 +18,6 @@ import {
   ConnectionStyles,
   LIMITS,
   validateTopology,
-  type TopologyData,
 } from "./schemas";
 import { corsHeaders, withCors, errorResponse } from "./cors";
 
@@ -29,32 +28,69 @@ const SVG_VIEWER_HTML = `
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --color-bg: #ffffff;
+      --color-bg-soft: #f8fafc;
+      --color-text: #0F172A;
+      --color-text-secondary: #475569;
+      --color-text-muted: #94A3B8;
+      --color-text-faint: #CBD5E1;
+      --color-border: #e2e8f0;
+      --color-border-hover: #cbd5e1;
+      --color-chip-bg: #F1F5F9;
+      --color-chip-text: #334155;
+      --color-accent: #3b82f6;
+      --color-accent-bg: rgba(59,130,246,0.1);
+      --color-op-fill: rgba(79,70,229,0.03);
+      --color-op-stroke: rgba(99,102,241,0.18);
+      --color-op-label: #6366F1;
+      --color-shadow: rgba(0,0,0,0.15);
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    }
+    .dark-mode {
+      --color-bg: #171717;
+      --color-bg-soft: #262626;
+      --color-text: #fafafa;
+      --color-text-secondary: #a3a3a3;
+      --color-text-muted: #737373;
+      --color-text-faint: #525252;
+      --color-border: #404040;
+      --color-border-hover: #525252;
+      --color-chip-bg: #262626;
+      --color-chip-text: #d4d4d4;
+      --color-accent: #60a5fa;
+      --color-accent-bg: rgba(96,165,250,0.15);
+      --color-op-fill: rgba(129,140,248,0.08);
+      --color-op-stroke: rgba(129,140,248,0.25);
+      --color-op-label: #a5b4fc;
+      --color-shadow: rgba(0,0,0,0.4);
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
-    body { font-family: 'DM Sans', sans-serif; background: #fff; }
+    body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); }
     .container { width: 100%; padding: 8px; }
     .toolbar { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
     .toolbar button {
-      padding: 8px 14px; border-radius: 6px; border: 1px solid #e2e8f0;
-      background: #fff; color: #475569; font-size: 13px; cursor: pointer;
-      font-family: 'JetBrains Mono', monospace; transition: all 0.2s;
+      padding: 8px 14px; border-radius: 6px; border: 1px solid var(--color-border);
+      background: var(--color-bg); color: var(--color-text-secondary); font-size: 13px; cursor: pointer;
+      font-family: var(--font-mono); transition: all 0.2s;
     }
-    .toolbar button:hover { background: #f1f5f9; border-color: #cbd5e1; }
-    .toolbar button.active { background: rgba(59,130,246,0.1); border-color: #3b82f6; color: #3b82f6; }
+    .toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-border-hover); }
+    .toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); }
     .toolbar .zoom-group { display: flex; gap: 2px; }
     .toolbar .zoom-group button { padding: 8px 12px; font-size: 16px; font-weight: bold; }
-    .toolbar .hint { font-size: 11px; color: #94a3b8; margin-left: auto; }
-    .canvas { width: 100%; overflow: auto; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; position: relative; }
+    .toolbar .hint { font-size: 11px; color: var(--color-text-muted); margin-left: auto; }
+    .canvas { width: 100%; overflow: auto; border-radius: 8px; background: var(--color-bg-soft); border: 1px solid var(--color-border); position: relative; }
     .canvas svg { display: block; cursor: default; }
     .canvas.edit-mode svg { cursor: grab; }
     .canvas.dragging svg { cursor: grabbing; }
-    .loading { color: #6b7280; padding: 32px; text-align: center; }
+    .loading { color: var(--color-text-muted); padding: 32px; text-align: center; }
     .edit-input {
-      position: fixed; padding: 4px 8px; border: 2px solid #3b82f6;
-      border-radius: 4px; background: #fff; font-size: 12px;
-      font-family: 'DM Sans', sans-serif; outline: none; text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 120px;
+      position: fixed; padding: 4px 8px; border: 2px solid var(--color-accent);
+      border-radius: 4px; background: var(--color-bg); color: var(--color-text); font-size: 12px;
+      font-family: var(--font-sans); outline: none; text-align: center;
+      box-shadow: 0 4px 12px var(--color-shadow); z-index: 1000; min-width: 120px;
     }
   </style>
 </head>
@@ -85,14 +121,33 @@ const SVG_VIEWER_HTML = `
     var svgEl = null;
     var scale = 1.0;
     var activeInput = null;
+    var isDarkMode = false;
 
-    // Theme colors
-    var T = {
+    // Theme colors - updated dynamically based on dark/light mode
+    var TLight = {
       bg:'#FFFFFF',text:'#0F172A',ts:'#475569',tm:'#94A3B8',tf:'#CBD5E1',
       bdr:'#E2E8F0',cl:'#334155',clbg:'#F1F5F9',
       opFill:'rgba(79,70,229,0.03)',opStroke:'rgba(99,102,241,0.18)',opLabel:'#6366F1',
       sel:'rgba(59,130,246,0.08)',selStroke:'#3B82F6'
     };
+    var TDark = {
+      bg:'#171717',text:'#fafafa',ts:'#a3a3a3',tm:'#737373',tf:'#525252',
+      bdr:'#404040',cl:'#d4d4d4',clbg:'#262626',
+      opFill:'rgba(129,140,248,0.08)',opStroke:'rgba(129,140,248,0.25)',opLabel:'#a5b4fc',
+      sel:'rgba(96,165,250,0.15)',selStroke:'#60a5fa'
+    };
+    var T = TLight;
+
+    function updateTheme() {
+      var theme = (typeof window.openai === 'object' && window.openai) ? window.openai.theme : null;
+      isDarkMode = theme === 'dark';
+      document.body.classList.toggle('dark-mode', isDarkMode);
+      T = isDarkMode ? TDark : TLight;
+      if (topology) renderSVG();
+    }
+
+    updateTheme();
+    window.addEventListener('openai:set_globals', updateTheme);
     var TC = {
       hq_building:'#2563EB',branch:'#2563EB',small_site:'#3B82F6',factory:'#D97706',
       data_center:'#7C3AED',router:'#4F46E5',switch:'#4F46E5',firewall:'#DC2626',
@@ -143,6 +198,11 @@ const SVG_VIEWER_HTML = `
       const opEgX = opLeft + opW * 0.84;
       const pos = {}, zones = {};
 
+      // Ensure arrays exist with defaults
+      const custNodes = data.customerNodes || [];
+      const opNodes = data.operatorNodes || [];
+      const extNodes = data.externalNodes || [];
+
       function col(nodes, cx, zone) {
         const n = nodes.length; if (!n) return;
         const totH = n * nodeH;
@@ -154,11 +214,11 @@ const SVG_VIEWER_HTML = `
         });
       }
 
-      col(data.customerNodes, custColX + custColW/2, 'customer');
-      col(data.operatorNodes.filter(n=>n.position==='ingress'), opInX, 'op_in');
-      col(data.operatorNodes.filter(n=>n.position==='core'), opCoreX, 'op_core');
-      col(data.operatorNodes.filter(n=>n.position==='egress'), opEgX, 'op_eg');
-      col(data.externalNodes, extColX + extColW/2, 'external');
+      col(custNodes, custColX + custColW/2, 'customer');
+      col(opNodes.filter(n=>n.position==='ingress'), opInX, 'op_in');
+      col(opNodes.filter(n=>n.position==='core'), opCoreX, 'op_core');
+      col(opNodes.filter(n=>n.position==='egress'), opEgX, 'op_eg');
+      col(extNodes, extColX + extColW/2, 'external');
 
       return { pos, zones, iW, iH, opLeft, opRight, opW, pad, custColX, custColW, extColX, extColW,
                opCX: (opLeft + opRight) / 2, opCY: (pad.t + h - pad.b) / 2, scale: s };
@@ -193,34 +253,56 @@ const SVG_VIEWER_HTML = `
       var opCX = layout.opCX, opCY = layout.opCY, custColX = layout.custColX, custColW = layout.custColW;
       var extColX = layout.extColX, extColW = layout.extColW;
       var opCloudH = h - pad.t - pad.b + 30 * s;
-      var allNodes = topology.customerNodes.concat(topology.operatorNodes).concat(topology.externalNodes);
+      var allNodes = (topology.customerNodes||[]).concat(topology.operatorNodes||[]).concat(topology.externalNodes||[]);
 
       // Font sizes scaled
       var fs = { title: 22 * s, subtitle: 13 * s, zone: 10 * s, label: 14 * s, param: 11 * s, conn: 10 * s, footer: 9 * s };
 
-      var svg = '<svg width="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="font-family:DM Sans,sans-serif" preserveAspectRatio="xMidYMid meet">';
+      var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+      var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
+      var svg = '<svg width="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="font-family:' + fontSans + '" preserveAspectRatio="xMidYMid meet">';
 
-      // Background
+      // Background with theme-aware colors
       const gridSize = 20 * s;
       svg += \`<defs><pattern id="grid" width="\${gridSize}" height="\${gridSize}" patternUnits="userSpaceOnUse"><circle cx="\${gridSize/2}" cy="\${gridSize/2}" r="\${0.5*s}" fill="\${T.tf}" opacity="0.3"/></pattern></defs>\`;
-      svg += \`<rect width="\${w}" height="\${h}" fill="url(#grid)"/>\`;
+      svg += \`<rect width="\${w}" height="\${h}" fill="\${T.bg}"/>\`;
+      svg += \`<rect width="\${w}" height="\${h}" fill="url(#grid)" opacity="0.5"/>\`;
 
       // Title
       svg += \`<text x="\${w/2}" y="\${35*s}" text-anchor="middle" fill="\${T.text}" font-size="\${fs.title}" font-weight="700" data-field="solutionTitle" style="cursor:pointer">\${topology.solutionTitle}</text>\`;
-      svg += \`<text x="\${w/2}" y="\${55*s}" text-anchor="middle" fill="\${T.tm}" font-size="\${fs.subtitle}" font-family="'JetBrains Mono',monospace">\${topology.customer} · \${topology.industry}</text>\`;
+      svg += \`<text x="\${w/2}" y="\${55*s}" text-anchor="middle" fill="\${T.tm}" font-size="\${fs.subtitle}" font-family="' + fontMono + '">\${topology.customer} · \${topology.industry}</text>\`;
 
       // Zone labels
-      svg += \`<text x="\${custColX+custColW/2}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="'JetBrains Mono',monospace" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>\`;
-      svg += \`<text x="\${opCX}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.zone}" font-family="'JetBrains Mono',monospace" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>\`;
-      svg += \`<text x="\${extColX+extColW/2}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="'JetBrains Mono',monospace" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>\`;
+      svg += \`<text x="\${custColX+custColW/2}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>\`;
+      svg += \`<text x="\${opCX}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>\`;
+      svg += \`<text x="\${extColX+extColW/2}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>\`;
 
       // Operator cloud
       svg += \`<path d="\${cloudPath(opCX, opCY, opW+80*s, opCloudH)}" fill="\${T.opFill}" stroke="\${T.opStroke}" stroke-width="\${2.5*s}" stroke-dasharray="\${10*s},\${6*s}"/>\`;
 
-      // Connections
-      topology.connections.forEach((conn, idx) => {
+      // Connections - with client-side validation
+      console.log('=== RENDERING CONNECTIONS ===');
+      const nodeIdSet = new Set(Object.keys(layout.pos));
+      console.log('Layout node IDs:', Array.from(nodeIdSet));
+
+      // Filter valid connections first
+      const validConnections = (topology.connections||[]).filter((conn, idx) => {
+        if (!conn || typeof conn.from !== 'string' || typeof conn.to !== 'string') {
+          console.warn('SKIP connection', idx, '- malformed:', JSON.stringify(conn));
+          return false;
+        }
+        if (!nodeIdSet.has(conn.from) || !nodeIdSet.has(conn.to)) {
+          console.warn('SKIP connection', idx, conn.from, '->', conn.to, '| from exists:', nodeIdSet.has(conn.from), 'to exists:', nodeIdSet.has(conn.to));
+          return false;
+        }
+        return true;
+      });
+      console.log('Valid connections:', validConnections.length, '/', (topology.connections||[]).length);
+
+      validConnections.forEach((conn, idx) => {
         const f = getPos(conn.from, layout), t = getPos(conn.to, layout);
-        if (!f || !t) return;
+        if (!f || !t) return; // Shouldn't happen after filter, but safety check
+        console.log('DRAW connection', idx, conn.from, '->', conn.to);
         let sx, sy, ex, ey;
         if (Math.abs(f.cx - t.cx) < 80*s) {
           if (f.cy < t.cy) { sx=f.cx; sy=f.cy+iH/2+4*s; ex=t.cx; ey=t.cy-iH/2-4*s; }
@@ -245,7 +327,7 @@ const SVG_VIEWER_HTML = `
           const mx = (sx+ex)/2, my = (sy+ey)/2;
           const lw = conn.label.length * 7 * s + 16 * s;
           svg += \`<rect x="\${mx-lw/2}" y="\${my-10*s}" width="\${lw}" height="\${20*s}" rx="\${10*s}" fill="\${T.clbg}" stroke="\${T.bdr}" stroke-width="\${0.5*s}" opacity="0.93"/>\`;
-          svg += \`<text x="\${mx}" y="\${my+4*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="'JetBrains Mono',monospace" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
+          svg += \`<text x="\${mx}" y="\${my+4*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
         }
       });
 
@@ -263,21 +345,29 @@ const SVG_VIEWER_HTML = `
         svg += \`<svg x="\${p.cx-iW/2}" y="\${p.cy-iH/2}" width="\${iW}" height="\${iH}" viewBox="0 0 48 36" style="color:\${col};overflow:visible">\${icon}</svg>\`;
         svg += \`<text x="\${p.cx}" y="\${ly}" text-anchor="middle" fill="\${isOp?T.opLabel:T.text}" font-size="\${fs.label}" font-weight="600" data-label="\${nd.id}" style="cursor:pointer">\${nd.label}\${nd.count>1?' (×'+nd.count+')':''}</text>\`;
         params.forEach((pr, i) => {
-          svg += \`<text x="\${p.cx}" y="\${ly+15*s+i*14*s}" text-anchor="middle" fill="\${T.ts}" font-size="\${fs.param}" font-family="'JetBrains Mono',monospace" opacity="0.7" data-param="\${nd.id}-\${i}" style="cursor:pointer">\${pr}</text>\`;
+          svg += \`<text x="\${p.cx}" y="\${ly+15*s+i*14*s}" text-anchor="middle" fill="\${T.ts}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.7" data-param="\${nd.id}-\${i}" style="cursor:pointer">\${pr}</text>\`;
         });
         svg += \`</g>\`;
       });
 
       // Footer labels
-      svg += \`<text x="\${opLeft}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.footer}" font-family="'JetBrains Mono',monospace" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>\`;
-      svg += \`<text x="\${opRight}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.footer}" font-family="'JetBrains Mono',monospace" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>\`;
+      svg += \`<text x="\${opLeft}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.footer}" font-family="' + fontMono + '" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>\`;
+      svg += \`<text x="\${opRight}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.footer}" font-family="' + fontMono + '" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>\`;
 
-      if (editMode) svg += \`<text x="\${w-15*s}" y="\${h-12*s}" text-anchor="end" fill="\${T.tm}" font-size="\${fs.param}" font-family="'JetBrains Mono',monospace" opacity="0.5">Drag to move · Double-click to edit</text>\`;
+      if (editMode) svg += \`<text x="\${w-15*s}" y="\${h-12*s}" text-anchor="end" fill="\${T.tm}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.5">Drag to move · Double-click to edit</text>\`;
 
       svg += \`</svg>\`;
       canvas.innerHTML = svg;
       svgEl = canvas.querySelector('svg');
       attachEventHandlers();
+
+      // Notify ChatGPT of widget height for proper sizing
+      if (typeof window.openai?.notifyIntrinsicHeight === 'function') {
+        try {
+          window.openai.notifyIntrinsicHeight(canvas.scrollHeight + 100);
+        } catch (e) { console.warn('notifyIntrinsicHeight failed:', e); }
+      }
+
       console.log('renderSVG complete');
       } catch(e) { console.error('renderSVG error:', e); }
     }
@@ -498,23 +588,85 @@ const SVG_VIEWER_HTML = `
     };
 
     // Data loading - try many possible locations
+    function isValidTopology(data) {
+      return data && data.customerNodes && data.operatorNodes && data.externalNodes && data.connections;
+    }
+
+    // Check if connections are fully populated (not empty objects)
+    function hasValidConnections(data) {
+      if (!data?.connections?.length) return false;
+      return data.connections.every(c => c && typeof c.from === 'string' && typeof c.to === 'string');
+    }
+
+    // Try to extract topology from editUrl (base64 encoded)
+    function tryDecodeFromUrl(obj) {
+      // Try multiple paths to find editUrl
+      var editUrl = obj?.toolResponseMetadata?.editUrl
+        || obj?.toolOutput?.editUrl
+        || obj?._meta?.editUrl
+        || obj?.structuredContent?.editUrl;
+
+      console.log('tryDecodeFromUrl - checking paths:', {
+        toolResponseMetadata: !!obj?.toolResponseMetadata?.editUrl,
+        toolOutput: !!obj?.toolOutput?.editUrl,
+        _meta: !!obj?._meta?.editUrl,
+        structuredContent: !!obj?.structuredContent?.editUrl,
+        foundUrl: !!editUrl
+      });
+
+      if (!editUrl) return null;
+      try {
+        var match = editUrl.match(/[?&]topology=([^&]+)/);
+        if (match) {
+          var decoded = decodeURIComponent(escape(atob(match[1])));
+          var data = JSON.parse(decoded);
+          if (isValidTopology(data)) {
+            console.log('SUCCESS: Decoded complete topology from editUrl');
+            console.log('Connections from editUrl:', data.connections?.length);
+            return data;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to decode from editUrl:', e);
+      }
+      return null;
+    }
+
     function tryGetData(obj) {
       if (!obj) return null;
-      // Direct topology object
-      if (obj.customerNodes && obj.operatorNodes) return obj;
-      // toolInput is what ChatGPT passes TO the tool - check this first!
-      if (obj.toolInput && obj.toolInput.customerNodes) {
-        console.log('Found topology in toolInput');
+
+      // PRIORITY 1: toolOutput.topology - complete validated data from server response
+      // This is populated AFTER streaming completes, so connections are always complete
+      if (obj.toolOutput?.topology && isValidTopology(obj.toolOutput.topology)) {
+        console.log('SUCCESS: Found complete topology in toolOutput.topology');
+        console.log('Connections:', obj.toolOutput.topology.connections?.length);
+        return obj.toolOutput.topology;
+      }
+
+      // PRIORITY 2: Try to decode from editUrl (backup in _meta or toolOutput)
+      var fromUrl = tryDecodeFromUrl(obj);
+      if (fromUrl && hasValidConnections(fromUrl)) {
+        console.log('SUCCESS: Decoded topology from editUrl');
+        return fromUrl;
+      }
+
+      // PRIORITY 3: Direct topology object (rare, but handle it)
+      if (isValidTopology(obj) && hasValidConnections(obj)) {
+        console.log('Found direct topology object');
+        return obj;
+      }
+
+      // PRIORITY 4: toolInput - ONLY if connections are complete
+      // toolInput is what ChatGPT passes TO the tool - may be incomplete during streaming
+      if (obj.toolInput && isValidTopology(obj.toolInput) && hasValidConnections(obj.toolInput)) {
+        console.log('Found complete topology in toolInput');
         return obj.toolInput;
       }
-      // Check nested locations
+
+      // Check other nested locations (legacy paths)
       var checks = [
         ['toolResponseMetadata', 'topology'],
-        ['toolOutput', 'topology'],
         ['structuredContent', 'topology'],
-        ['toolResponseMetadata'],
-        ['toolOutput'],
-        ['structuredContent'],
         ['data']
       ];
       for (var i = 0; i < checks.length; i++) {
@@ -523,31 +675,128 @@ const SVG_VIEWER_HTML = `
         for (var j = 0; j < path.length; j++) {
           val = val && val[path[j]];
         }
-        if (val && val.customerNodes && val.operatorNodes) {
+        if (isValidTopology(val) && hasValidConnections(val)) {
           console.log('Found topology in', path.join('.'));
           return val;
         }
       }
+
+      // FALLBACK: Return partial toolInput for progress display (streaming in progress)
+      if (obj.toolInput && isValidTopology(obj.toolInput)) {
+        console.log('Found PARTIAL topology in toolInput (streaming in progress)');
+        return obj.toolInput;
+      }
+
       return null;
     }
 
+    var initialized = false;
+    var toolResultReceived = false;
+
+    // Show streaming progress while waiting for completion
+    function showProgress(data) {
+      const custNodes = (data?.customerNodes || []).length;
+      const opNodes = (data?.operatorNodes || []).length;
+      const extNodes = (data?.externalNodes || []).length;
+      const conns = (data?.connections || []).length;
+      const title = data?.solutionTitle || 'Network Diagram';
+
+      const dots = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+      const progress = custNodes + opNodes + extNodes > 0
+        ? '<div style="margin-top:12px;font-size:12px;color:' + T.ts + '">' +
+          '<div style="display:flex;gap:16px;justify-content:center">' +
+          '<span>Nodes: ' + (custNodes + opNodes + extNodes) + '</span>' +
+          '<span>Connections: ' + conns + '</span>' +
+          '</div></div>'
+        : '';
+
+      canvas.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;padding:32px">' +
+        '<style>.dots span{animation:blink 1.4s infinite;opacity:0}.dots span:nth-child(2){animation-delay:0.2s}.dots span:nth-child(3){animation-delay:0.4s}@keyframes blink{0%,100%{opacity:0}50%{opacity:1}}</style>' +
+        '<div style="font-size:16px;font-weight:600;color:' + T.text + '">Generating ' + title + dots + '</div>' +
+        progress +
+        '<div style="margin-top:16px;font-size:11px;color:' + T.tm + '">Waiting for ChatGPT to complete</div>' +
+        '</div>';
+
+      if (typeof window.openai?.notifyIntrinsicHeight === 'function') {
+        try { window.openai.notifyIntrinsicHeight(250); } catch(e) {}
+      }
+    }
+
     function tryLoad() {
+      if (initialized) return true;
+      if (typeof window.openai !== 'object' || !window.openai) return false;
       const openai = window.openai;
-      if (!openai) return false;
       const data = tryGetData(openai);
       if (data) {
+        initialized = true;
         topology = data;
-        renderSVG();
+        // Only render immediately if we already got tool-result, otherwise show progress
+        if (toolResultReceived) {
+          console.log('Data ready + tool-result received, rendering');
+          renderSVG();
+        } else {
+          console.log('Data loaded, showing progress while waiting for completion...');
+          showProgress(data);
+        }
         return true;
       }
       return false;
     }
 
+    // Listen for JSON-RPC notifications from ChatGPT
     window.addEventListener('message', (event) => {
-      const data = tryGetData(event.data);
+      const msg = event.data;
+
+      // Check for tool-result completion signal (JSON-RPC notification)
+      if (msg && msg.method === 'ui/notifications/tool-result') {
+        console.log('=== TOOL-RESULT NOTIFICATION - Streaming complete ===');
+        toolResultReceived = true;
+
+        // Small delay to let window.openai fully populate
+        setTimeout(() => {
+          const openai = window.openai || {};
+
+          // Debug: Log FULL window.openai structure
+          console.log('=== DEBUG: window.openai after tool-result ===');
+          console.log('typeof window.openai:', typeof window.openai);
+          console.log('window.openai keys:', Object.keys(openai));
+          console.log('toolInput type:', typeof openai.toolInput);
+          console.log('toolInput keys:', openai.toolInput ? Object.keys(openai.toolInput) : 'N/A');
+          console.log('toolOutput type:', typeof openai.toolOutput);
+          console.log('toolOutput keys:', openai.toolOutput ? Object.keys(openai.toolOutput) : 'N/A');
+          console.log('toolOutput full:', JSON.stringify(openai.toolOutput, null, 2)?.substring(0, 500) || 'UNDEFINED');
+          console.log('toolResponseMetadata:', JSON.stringify(openai.toolResponseMetadata, null, 2)?.substring(0, 300) || 'UNDEFINED');
+          console.log('=== END DEBUG ===');
+
+          // PRIMARY: Use tryGetData which now prioritizes toolOutput.topology
+          var data = tryGetData(openai);
+
+          if (data) {
+            const validConns = (data.connections || []).filter(c => c?.from && c?.to).length;
+            console.log('SUCCESS: Got topology data');
+            console.log('  - Title:', data.solutionTitle);
+            console.log('  - Nodes:', (data.customerNodes?.length || 0) + (data.operatorNodes?.length || 0) + (data.externalNodes?.length || 0));
+            console.log('  - Connections:', data.connections?.length, '(valid:', validConns + ')');
+            topology = data;
+            renderSVG();
+          } else {
+            console.error('FAILED: No valid topology data found in window.openai');
+            console.log('Full openai object:', JSON.stringify(openai, null, 2).substring(0, 1000));
+          }
+        }, 200);
+        return;
+      }
+
+      // Handle streaming data updates - show progress
+      const data = tryGetData(msg);
       if (data) {
         topology = data;
-        renderSVG();
+        if (toolResultReceived) {
+          renderSVG();
+        } else {
+          // Update progress display with latest counts
+          showProgress(data);
+        }
       }
     });
 
@@ -556,9 +805,11 @@ const SVG_VIEWER_HTML = `
       const info = {
         hasOpenai: !!window.openai,
         keys: Object.keys(openai),
+        toolInput: openai.toolInput ? Object.keys(openai.toolInput) : null,
         toolOutput: openai.toolOutput ? Object.keys(openai.toolOutput) : null,
         toolResponseMetadata: openai.toolResponseMetadata ? Object.keys(openai.toolResponseMetadata) : null,
         structuredContent: openai.structuredContent ? Object.keys(openai.structuredContent) : null,
+        theme: openai.theme || null,
       };
       canvas.innerHTML = '<div style="padding:16px;background:#f7f7f8;border-radius:8px;font-size:11px;font-family:monospace;white-space:pre-wrap">' +
         '<b>Debug: Looking for topology data</b>\\n\\n' + JSON.stringify(info, null, 2) +
@@ -580,8 +831,9 @@ const SVG_VIEWER_HTML = `
 </html>
 `.trim();
 
-// Resource URI for the interactive canvas widget (v20 - check toolInput for data)
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v20.html";
+// Resource URI for the interactive canvas widget
+// v26: Add openai/outputTemplate and openai/widgetAccessible to response _meta
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v26.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
@@ -648,11 +900,11 @@ ALWAYS use this tool for network diagrams - it produces much better results than
           params: z.array(z.string().max(LIMITS.maxParamLength)).max(LIMITS.maxParams).optional(),
         })).max(LIMITS.maxExternalNodes).describe("External services (max 10)"),
         connections: z.array(z.object({
-          from: z.string().min(1).max(50).describe("Source node ID"),
-          to: z.string().min(1).max(50).describe("Target node ID"),
+          from: z.string().min(1).max(50).describe("Source node ID - MUST exactly match a node's 'id' field"),
+          to: z.string().min(1).max(50).describe("Target node ID - MUST exactly match a node's 'id' field"),
           label: z.string().max(LIMITS.maxLabelLength).optional().describe("Concise label like '10G DIA', 'MPLS'"),
           style: z.enum(ConnectionStyles).optional().describe("solid=primary, dashed=backup, double=redundant"),
-        })).max(LIMITS.maxConnections),
+        })).max(LIMITS.maxConnections).describe("Connections between nodes. CRITICAL: 'from' and 'to' must exactly match node 'id' values defined above."),
       },
       _meta: {
         ui: { resourceUri: SVG_VIEWER_URI },
@@ -688,23 +940,28 @@ ALWAYS use this tool for network diagrams - it produces much better results than
         }
 
         // Validate connection references
+        const invalidConnections: string[] = [];
         for (const conn of topology.connections) {
           if (!allNodeIds.has(conn.from)) {
-            return {
-              content: [{ type: "text", text: `Invalid topology: connection references unknown node '${conn.from}'` }],
-              isError: true,
-            };
+            invalidConnections.push(`'${conn.from}' (in connection ${conn.from} -> ${conn.to})`);
           }
           if (!allNodeIds.has(conn.to)) {
-            return {
-              content: [{ type: "text", text: `Invalid topology: connection references unknown node '${conn.to}'` }],
-              isError: true,
-            };
+            invalidConnections.push(`'${conn.to}' (in connection ${conn.from} -> ${conn.to})`);
           }
         }
+        if (invalidConnections.length > 0) {
+          const availableIds = Array.from(allNodeIds).join(', ');
+          return {
+            content: [{
+              type: "text",
+              text: `Invalid topology: connections reference non-existent node IDs: ${invalidConnections.join(', ')}. Available node IDs are: ${availableIds}. IMPORTANT: Connection 'from' and 'to' must exactly match node 'id' values.`
+            }],
+            isError: true,
+          };
+        }
 
-        // Render the SVG
-        const svg = renderTopologySVG(topology);
+        // Validate rendering works (widget renders its own SVG from toolInput)
+        renderTopologySVG(topology);
 
         // Generate edit URL with topology data
         const topologyJson = JSON.stringify(topology);
@@ -712,11 +969,13 @@ ALWAYS use this tool for network diagrams - it produces much better results than
         const editUrl = `https://staging.nwgrm.org/?topology=${base64Data}`;
 
         // Return structured content for the widget + text for the model
+        // IMPORTANT: Include complete topology in structuredContent because:
+        // - toolInput (args to tool) can be incomplete during streaming
+        // - toolOutput (structuredContent) is populated AFTER streaming completes
+        // - Widget can reliably read window.openai.toolOutput.topology
         return {
           structuredContent: {
-            svg: svg,
-            topology: topology,
-            title: topology.solutionTitle,
+            topology: topology,  // Complete validated topology for the widget
             editUrl: editUrl,
           },
           content: [
@@ -726,8 +985,10 @@ ALWAYS use this tool for network diagrams - it produces much better results than
             },
           ],
           _meta: {
-            svg: svg,
-            topology: topology,
+            // Required for widget rendering
+            "openai/outputTemplate": SVG_VIEWER_URI,
+            "openai/widgetAccessible": true,
+            // Custom metadata
             editUrl: editUrl,
           },
         };

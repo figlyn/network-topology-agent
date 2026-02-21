@@ -2,6 +2,52 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Required Skills
+
+**MANDATORY**: When working on ChatGPT Apps integration, MCP server, or widget development, you MUST first read and apply the ChatGPT App Builder skill:
+
+```
+.claude/skills/chatgpt-app-builder/SKILL.md
+```
+
+Key reference files for troubleshooting:
+- `.claude/skills/chatgpt-app-builder/references/troubleshooting.md` - Common issues and solutions
+- `.claude/skills/chatgpt-app-builder/references/widget_development.md` - Widget API and patterns
+- `.claude/skills/chatgpt-app-builder/references/node_chatgpt_app.md` - Server implementation patterns
+
+## Sub-Agents
+
+Specialized agent configurations for different workflows:
+
+| Agent | File | Purpose |
+|-------|------|---------|
+| **Tester** | `.claude/agents/TESTER.md` | Manual QA testing in ChatGPT web interface |
+| **Developer** | `.claude/agents/DEVELOPER.md` | Implementation with skills + web search |
+
+### Using Agents with Task Tool
+
+```
+# Spawn a Tester agent
+Task: "Act as TESTER agent. Read .claude/agents/TESTER.md and test the current widget in ChatGPT. Report any issues with connections rendering."
+
+# Spawn a Developer agent
+Task: "Act as DEVELOPER agent. Read .claude/agents/DEVELOPER.md. Search web for 'MCP protocol widget streaming 2026' and implement fix for connections not rendering."
+```
+
+### Agent Capabilities
+
+**Tester Agent:**
+- Tests widgets in ChatGPT web interface
+- Follows Phase 4 testing checklist from skill
+- Reports bugs with reproduction steps
+- Uses browser console for debugging
+
+**Developer Agent:**
+- Implements MCP server and widget code
+- Searches web for current documentation (2026)
+- Applies security patterns from skill references
+- Runs tests and deploys to staging
+
 ## Build & Development Commands
 
 ```bash
@@ -9,7 +55,73 @@ npm install         # Install dependencies
 npm run dev         # Start dev server on port 3000
 npm run build       # Production build to /dist
 npm run preview     # Preview production build
+npm test            # Run tests in watch mode
+npm run test:run    # Run tests once
+npm run typecheck   # TypeScript type checking
 ```
+
+## Testing
+
+**Framework:** Vitest (compatible with Vite)
+
+**Test files:**
+| File | Purpose |
+|------|---------|
+| `src/schemas.test.ts` | Zod schema validation (27 tests) |
+| `src/svg-renderer.test.ts` | SVG rendering output (13 tests) |
+| `src/test-fixtures.ts` | Shared test data (minimal/full topologies) |
+
+**Run tests before making changes:**
+```bash
+npm run test:run && npm run typecheck
+```
+
+**Test fixtures available:**
+- `minimalTopology` - Simplest valid topology (1 node per zone)
+- `fullTopology` - Complete topology with all features (counts, params, styles)
+- `invalidTopologies` - Collection of invalid inputs for validation testing
+
+**Known issues found by tests:**
+- Zod v4 uses `error.issues` not `error.errors` (fixed in schemas.ts)
+
+## Next Session Init Procedure
+
+**MANDATORY** - Run these steps at the start of every session:
+
+1. **Read the skill**: `.claude/skills/chatgpt-app-builder/SKILL.md`
+2. **Run tests**: `npm run test:run && npm run typecheck`
+3. **Review current issue** (if any): See "Current Issue" section below
+
+## Current Issue
+
+**Testing v24** - Awaiting tester verification.
+
+## Widget Version History
+
+- v24: (CURRENT) Include topology in structuredContent so toolOutput.topology has complete validated data
+- v23: Attempted toolOutput.topology fix - FAILED because server didn't include topology in structuredContent
+- v22: Improved topology validation, defensive array checks, debug logging
+- v21: Dark mode, system fonts, notifyIntrinsicHeight, loading guard
+- v20: Initial ChatGPT widget with toolInput support
+
+## Technical Notes - Streaming vs Complete Data
+
+**Key insight from v23/v24 debugging:**
+
+1. `window.openai.toolInput` = Arguments ChatGPT sends TO the tool (JSON streaming in progress)
+2. `window.openai.toolOutput` = The `structuredContent` from the tool's response (populated after completion)
+
+**Problem in v23:** The widget tried to read `toolOutput.topology`, but the server only returned:
+```javascript
+structuredContent: { title: "...", editUrl: "..." }  // No topology!
+```
+
+**Fix in v24:** Server now returns complete topology in structuredContent:
+```javascript
+structuredContent: { topology: validatedTopology, editUrl: "..." }
+```
+
+Now `window.openai.toolOutput.topology` contains the complete validated data.
 
 ## Architecture Overview
 
