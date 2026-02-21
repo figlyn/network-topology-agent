@@ -94,31 +94,39 @@ npm run test:run && npm run typecheck
 
 ## Current Issue
 
-**v27 FAILED** - Connections still not rendering.
+**v31 SUCCESS** - Connections now rendering correctly!
 
-### Attempted Fixes (all failed):
+### Fix Summary (v31):
+The root cause was that ChatGPT streams JSON properties incrementally. During streaming, `toolInput.connections` starts with partial data (e.g., 1-2 connections) and more connections arrive over time. Previous versions rendered too early before all connections arrived.
+
+**v31 Solution:**
+1. Track connection count across renders
+2. Only render connections when count has been **stable for 3+ consecutive checks**
+3. Retry mechanism polls every 400ms to detect new connections arriving
+4. Do NOT render just because existing connections are valid - wait for stability
+
+### Version History (v28-v31):
 
 | Version | Approach | Result |
 |---------|----------|--------|
-| v23 | Read `toolOutput.topology` instead of `toolInput` | `toolOutput` undefined |
-| v24-25 | Include topology in `structuredContent` | `toolOutput` still undefined |
-| v26 | Add `openai/outputTemplate` and `openai/widgetAccessible` to `_meta` | No change |
-| v27 | Event-based: render connections only after `tool-result` fires | Still no connections |
+| v28 | Data completeness checking (valid from/to) | Partial - rendered too early |
+| v29 | Stability check in tool-result handler only | Failed - handler didn't always fire |
+| v30 | Stability check in renderSVG + "all valid" shortcut | Failed - shortcut bypassed stability wait |
+| **v31** | **Stability check only (removed shortcut)** | **✅ SUCCESS - 4/4 connections** |
 
-### Key Observations:
-- **Old chats show connections correctly** - when revisiting a completed chat, all connections render
-- **New/streaming chats fail** - connections missing during and after streaming
-- `toolOutput` is never populated despite following SDK documentation
-- `toolInput` has incomplete data during streaming (missing `to` fields)
-
-### Next Steps to Investigate:
-1. Why does `toolOutput` remain undefined/false?
-2. Is there a different event or timing we're missing?
-3. Check if old chat data comes from a different source than live streaming
+### Key Learning:
+- **Don't rely on event timing** - `tool-result` event doesn't always fire reliably
+- **Don't use shortcuts** - "all existing connections valid" doesn't mean all connections have arrived
+- **Use stability counting** - wait until connection count stops changing (stable for 3+ checks)
+- **Polling/retry is essential** - new connections arrive asynchronously during streaming
 
 ## Widget Version History
 
-- v27: (CURRENT) Event-based connection rendering - nodes show immediately, connections after tool-result
+- v31: (CURRENT) ✅ SUCCESS - Stability-based rendering (wait for count stable 3+ checks)
+- v30: Stability check in renderSVG (FAILED - "all valid" shortcut bypassed wait)
+- v29: Stability check in tool-result handler only (FAILED - handler didn't always fire)
+- v28: Data completeness checking (PARTIAL - rendered too early with 2/4 connections)
+- v27: Event-based connection rendering (FAILED - didn't verify data completeness)
 - v26: Add openai/outputTemplate and openai/widgetAccessible to response _meta
 - v24-25: Include topology in structuredContent so toolOutput.topology has complete validated data
 - v23: Attempted toolOutput.topology fix - FAILED because server didn't include topology in structuredContent
@@ -126,23 +134,42 @@ npm run test:run && npm run typecheck
 - v21: Dark mode, system fonts, notifyIntrinsicHeight, loading guard
 - v20: Initial ChatGPT widget with toolInput support
 
-## Technical Notes - Streaming and Event-Based Rendering
+## Technical Notes - Streaming and Stability-Based Rendering
 
-**Key insight from v27:**
+**Key insight from v31:**
 
-ChatGPT streams JSON properties one at a time. During streaming, `toolInput.connections` may be incomplete:
+ChatGPT streams JSON incrementally. During streaming, `toolInput.connections` grows over time:
 ```javascript
-connections: [{from: "hq1"}]  // incomplete - missing "to" field
+// Time 0: First connection arrives
+connections: [{from: "hq", to: "router1"}]  // count=1
+
+// Time 1: More connections streaming
+connections: [{...}, {from: "router1", to: "firewall"}]  // count=2
+
+// Time 2: All connections arrived
+connections: [{...}, {...}, {...}, {...}]  // count=4 (final)
 ```
 
-**Solution: Event-based connection gating**
+**Problem with v28-v30:** Checking if connections are "valid" (have from/to) doesn't tell you if ALL connections have arrived. You might have 2 valid connections when 4 are coming.
 
-1. Widget renders **nodes immediately** during streaming (good UX - user sees progress)
-2. Widget **skips connections** until `ui/notifications/tool-result` event fires
-3. After tool-result, `toolInput` is complete, so connections render correctly
+**Solution: Stability-based rendering (v31)**
+
+1. Widget renders **nodes immediately** during streaming (good UX)
+2. Track connection **count** across renders
+3. Only render connections when count is **stable for 3+ consecutive checks**
+4. Retry every 400ms to detect new connections arriving
 
 ```javascript
-let toolResultReceived = false;
+// Track stability
+if (currentConnCount === lastConnectionCount && currentConnCount > 0) {
+  connectionCountStableFor++;
+} else {
+  connectionCountStableFor = 0;
+  lastConnectionCount = currentConnCount;
+}
+
+// Only render when stable OR tool-result received
+const shouldRenderConnections = toolResultReceived || connectionCountStableFor >= 3;
 
 // In renderSVG():
 if (toolResultReceived) {

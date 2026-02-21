@@ -280,15 +280,48 @@ const SVG_VIEWER_HTML = `
       // Operator cloud
       svg += \`<path d="\${cloudPath(opCX, opCY, opW+80*s, opCloudH)}" fill="\${T.opFill}" stroke="\${T.opStroke}" stroke-width="\${2.5*s}" stroke-dasharray="\${10*s},\${6*s}"/>\`;
 
-      // Connections - ONLY render after tool-result received (streaming complete)
-      // This prevents rendering incomplete connections during streaming
+      // Connections - Only render when we're confident ALL connections have arrived
+      // This requires EITHER: tool-result fired OR connection count has stabilized
       const nodeIdSet = new Set(Object.keys(layout.pos));
+      const currentConnCount = (topology.connections || []).length;
+      const validConns = (topology.connections || []).filter(c => c?.from && c?.to).length;
 
-      if (!toolResultReceived) {
-        console.log('=== SKIPPING CONNECTIONS (waiting for tool-result) ===');
-        console.log('Nodes ready:', nodeIdSet.size, '| Connections pending:', (topology.connections||[]).length);
+      // Track connection count stability
+      if (currentConnCount === lastConnectionCount && currentConnCount > 0) {
+        connectionCountStableFor++;
       } else {
-        console.log('=== RENDERING CONNECTIONS (tool-result received) ===');
+        connectionCountStableFor = 0;
+        lastConnectionCount = currentConnCount;
+      }
+
+      // Determine if we should render connections now
+      // MUST wait for: (1) tool-result received, OR (2) count stable for 3+ checks
+      // Do NOT render just because current connections are valid - more may be coming!
+      const shouldRenderConnections = toolResultReceived || connectionCountStableFor >= 3;
+
+      console.log('Connection check: count=' + currentConnCount + ', valid=' + validConns +
+                  ', stable=' + connectionCountStableFor + ', toolResult=' + toolResultReceived);
+
+      if (!shouldRenderConnections) {
+        console.log('=== SKIPPING CONNECTIONS (waiting for stability) ===');
+        console.log('Nodes ready:', nodeIdSet.size, '| Connections so far:', currentConnCount);
+
+        // Schedule a re-check to wait for more connections
+        if (!window._connectionRetryPending) {
+          window._connectionRetryPending = true;
+          setTimeout(() => {
+            window._connectionRetryPending = false;
+            // Re-read fresh data from window.openai
+            const freshData = tryGetData(window.openai);
+            if (freshData) {
+              console.log('=== RETRY: Re-checking connections ===');
+              topology = freshData;
+              renderSVG();
+            }
+          }, 400);
+        }
+      } else {
+        console.log('=== RENDERING CONNECTIONS (stable/complete) ===');
         console.log('Layout node IDs:', Array.from(nodeIdSet));
 
         // Filter valid connections first
@@ -336,7 +369,7 @@ const SVG_VIEWER_HTML = `
           svg += \`<text x="\${mx}" y="\${my+4*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
         }
       });
-      } // End of toolResultReceived check for connections
+      } // End of connectionsComplete check
 
       // Nodes
       allNodes.forEach(nd => {
@@ -699,6 +732,8 @@ const SVG_VIEWER_HTML = `
 
     var initialized = false;
     var toolResultReceived = false;
+    var lastConnectionCount = 0;
+    var connectionCountStableFor = 0;
 
     // Show streaming progress while waiting for completion
     function showProgress(data) {
@@ -754,38 +789,58 @@ const SVG_VIEWER_HTML = `
         console.log('=== TOOL-RESULT NOTIFICATION - Streaming complete ===');
         toolResultReceived = true;
 
-        // Small delay to let window.openai fully populate
-        setTimeout(() => {
+        // Wait for connection count to STABILIZE before rendering
+        // This ensures all connections have arrived, not just the first few
+        function tryRefreshData(attempt) {
           const openai = window.openai || {};
 
-          // Debug: Log FULL window.openai structure
-          console.log('=== DEBUG: window.openai after tool-result ===');
-          console.log('typeof window.openai:', typeof window.openai);
-          console.log('window.openai keys:', Object.keys(openai));
-          console.log('toolInput type:', typeof openai.toolInput);
+          // Debug: Log window.openai structure
+          console.log('=== DEBUG: window.openai attempt ' + attempt + ' ===');
           console.log('toolInput keys:', openai.toolInput ? Object.keys(openai.toolInput) : 'N/A');
-          console.log('toolOutput type:', typeof openai.toolOutput);
           console.log('toolOutput keys:', openai.toolOutput ? Object.keys(openai.toolOutput) : 'N/A');
-          console.log('toolOutput full:', JSON.stringify(openai.toolOutput, null, 2)?.substring(0, 500) || 'UNDEFINED');
-          console.log('toolResponseMetadata:', JSON.stringify(openai.toolResponseMetadata, null, 2)?.substring(0, 300) || 'UNDEFINED');
-          console.log('=== END DEBUG ===');
 
-          // PRIMARY: Use tryGetData which now prioritizes toolOutput.topology
           var data = tryGetData(openai);
 
           if (data) {
             const validConns = (data.connections || []).filter(c => c?.from && c?.to).length;
-            console.log('SUCCESS: Got topology data');
-            console.log('  - Title:', data.solutionTitle);
-            console.log('  - Nodes:', (data.customerNodes?.length || 0) + (data.operatorNodes?.length || 0) + (data.externalNodes?.length || 0));
-            console.log('  - Connections:', data.connections?.length, '(valid:', validConns + ')');
+            const totalConns = data.connections?.length || 0;
+            console.log('Attempt ' + attempt + ': Connections=' + totalConns + ' (valid=' + validConns + '), lastCount=' + lastConnectionCount);
+
+            // Check if connection count has stabilized
+            if (totalConns === lastConnectionCount && totalConns > 0) {
+              connectionCountStableFor++;
+              console.log('Connection count stable for ' + connectionCountStableFor + ' checks');
+            } else {
+              connectionCountStableFor = 0;
+              lastConnectionCount = totalConns;
+            }
+
             topology = data;
-            renderSVG();
+
+            // Only render when count has been stable for 2+ checks OR we've tried 8+ times
+            if (connectionCountStableFor >= 2 || attempt >= 8) {
+              console.log('=== RENDERING: count stable or max attempts reached ===');
+              console.log('  - Title:', data.solutionTitle);
+              console.log('  - Nodes:', (data.customerNodes?.length || 0) + (data.operatorNodes?.length || 0) + (data.externalNodes?.length || 0));
+              console.log('  - Final connections:', totalConns, '(valid:', validConns + ')');
+              renderSVG();
+            } else {
+              // Keep waiting for more connections to arrive
+              console.log('Waiting for connection count to stabilize, retry ' + (attempt + 1));
+              setTimeout(() => tryRefreshData(attempt + 1), 250);
+            }
           } else {
-            console.error('FAILED: No valid topology data found in window.openai');
-            console.log('Full openai object:', JSON.stringify(openai, null, 2).substring(0, 1000));
+            console.error('FAILED: No valid topology data found (attempt ' + attempt + ')');
+            if (attempt < 8) {
+              setTimeout(() => tryRefreshData(attempt + 1), 250);
+            }
           }
-        }, 200);
+        }
+
+        // Reset stability tracking and start retry sequence
+        lastConnectionCount = 0;
+        connectionCountStableFor = 0;
+        setTimeout(() => tryRefreshData(1), 300);
         return;
       }
 
@@ -830,8 +885,9 @@ const SVG_VIEWER_HTML = `
 `.trim();
 
 // Resource URI for the interactive canvas widget
-// v27: Event-based connection rendering - nodes show immediately, connections after tool-result
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v27.html";
+// v31: Remove "all valid" shortcut - MUST wait for toolResult OR stable count
+//      Prevents rendering with partial connections that happen to be valid
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v31.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
@@ -961,20 +1017,11 @@ ALWAYS use this tool for network diagrams - it produces much better results than
         // Validate rendering works (widget renders its own SVG from toolInput)
         renderTopologySVG(topology);
 
-        // Generate edit URL with topology data
-        const topologyJson = JSON.stringify(topology);
-        const base64Data = btoa(unescape(encodeURIComponent(topologyJson)));
-        const editUrl = `https://staging.nwgrm.org/?topology=${base64Data}`;
-
         // Return structured content for the widget + text for the model
-        // IMPORTANT: Include complete topology in structuredContent because:
-        // - toolInput (args to tool) can be incomplete during streaming
-        // - toolOutput (structuredContent) is populated AFTER streaming completes
-        // - Widget can reliably read window.openai.toolOutput.topology
+        // NOTE: editUrl removed to avoid ChatGPT displaying long base64 URLs
         return {
           structuredContent: {
             topology: topology,  // Complete validated topology for the widget
-            editUrl: editUrl,
           },
           content: [
             {
@@ -986,8 +1033,6 @@ ALWAYS use this tool for network diagrams - it produces much better results than
             // Required for widget rendering
             "openai/outputTemplate": SVG_VIEWER_URI,
             "openai/widgetAccessible": true,
-            // Custom metadata
-            editUrl: editUrl,
           },
         };
       } catch (err) {
