@@ -92,9 +92,9 @@ npm run test:run && npm run typecheck
 2. **Run tests**: `npm run test:run && npm run typecheck`
 3. **Review current issue** (if any): See "Current Issue" section below
 
-## Current Issue
+## Current Status
 
-**v31 SUCCESS** - Connections now rendering correctly!
+**v31 DEPLOYED** - All issues resolved. Connections render correctly.
 
 ### Fix Summary (v31):
 The root cause was that ChatGPT streams JSON properties incrementally. During streaming, `toolInput.connections` starts with partial data (e.g., 1-2 connections) and more connections arrive over time. Previous versions rendered too early before all connections arrived.
@@ -122,7 +122,9 @@ The root cause was that ChatGPT streams JSON properties incrementally. During st
 
 ## Widget Version History
 
-- v31: (CURRENT) ✅ SUCCESS - Stability-based rendering (wait for count stable 3+ checks)
+- v31: (CURRENT) ✅ SUCCESS - Stability-based rendering + removed editUrl from response
+  - Wait for connection count stable 3+ checks before rendering
+  - Removed long base64 editUrl from ChatGPT output
 - v30: Stability check in renderSVG (FAILED - "all valid" shortcut bypassed wait)
 - v29: Stability check in tool-result handler only (FAILED - handler didn't always fire)
 - v28: Data completeness checking (PARTIAL - rendered too early with 2/4 connections)
