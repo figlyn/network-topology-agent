@@ -117,7 +117,17 @@ browser_snapshot()  # Should show tools in preview
 
 **Note:** You may need to authenticate first. Run `browser_navigate` to ChatGPT and check if logged in.
 
-### 3. Test Checklist
+### 3. Invoking the Connector
+
+**IMPORTANT:** To use the connector in a chat, prefix your prompt with `/Network Gramm`:
+
+```
+/Network Gramm Create a simple SD-WAN diagram with HQ and 2 branches
+```
+
+This tells ChatGPT to use the Network Gramm connector for the request.
+
+### 4. Test Checklist
 
 **Widget Rendering:**
 - [ ] Widget loads without JavaScript errors (check browser console)
@@ -142,15 +152,18 @@ browser_snapshot()  # Should show tools in preview
 - [ ] Export SVG downloads file
 
 **Golden Prompts (should trigger tool):**
-1. "Create a network diagram for a bank with 10 branches connecting to AWS"
-2. "Draw a 5G topology for a manufacturing plant"
-3. "Show me an SD-WAN architecture for a retail company"
+
+**IMPORTANT:** Prefix prompts with `/Network Gramm` to invoke the connector:
+
+1. "/Network Gramm Create a network diagram for a bank with 10 branches connecting to AWS"
+2. "/Network Gramm Draw a 5G topology for a manufacturing plant"
+3. "/Network Gramm Show me an SD-WAN architecture for a retail company"
 
 **Negative Prompts (should NOT trigger tool):**
 1. "Explain what SD-WAN is"
 2. "Draw a flowchart for login process"
 
-### 4. Debug Techniques
+### 5. Debug Techniques
 
 **Check window.openai data:**
 Open browser console in ChatGPT tab and run:
@@ -171,7 +184,7 @@ console.log('Debug:', {
 **Check for CSP errors:**
 Look for "Content Security Policy" errors in browser console.
 
-### 5. Bug Report Template
+### 6. Bug Report Template
 
 ```markdown
 ## Bug: [Short description]
