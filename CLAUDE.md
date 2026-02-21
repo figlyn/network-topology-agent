@@ -94,34 +94,60 @@ npm run test:run && npm run typecheck
 
 ## Current Issue
 
-**Testing v24** - Awaiting tester verification.
+**Testing v27** - Awaiting tester verification.
+
+v27 implements event-based connection rendering:
+- Nodes render immediately during streaming (good UX)
+- Connections only render AFTER `ui/notifications/tool-result` event fires
+- This solves the incomplete connections issue during JSON streaming
 
 ## Widget Version History
 
-- v24: (CURRENT) Include topology in structuredContent so toolOutput.topology has complete validated data
+- v27: (CURRENT) Event-based connection rendering - nodes show immediately, connections after tool-result
+- v26: Add openai/outputTemplate and openai/widgetAccessible to response _meta
+- v24-25: Include topology in structuredContent so toolOutput.topology has complete validated data
 - v23: Attempted toolOutput.topology fix - FAILED because server didn't include topology in structuredContent
 - v22: Improved topology validation, defensive array checks, debug logging
 - v21: Dark mode, system fonts, notifyIntrinsicHeight, loading guard
 - v20: Initial ChatGPT widget with toolInput support
 
-## Technical Notes - Streaming vs Complete Data
+## Technical Notes - Streaming and Event-Based Rendering
 
-**Key insight from v23/v24 debugging:**
+**Key insight from v27:**
 
-1. `window.openai.toolInput` = Arguments ChatGPT sends TO the tool (JSON streaming in progress)
-2. `window.openai.toolOutput` = The `structuredContent` from the tool's response (populated after completion)
-
-**Problem in v23:** The widget tried to read `toolOutput.topology`, but the server only returned:
+ChatGPT streams JSON properties one at a time. During streaming, `toolInput.connections` may be incomplete:
 ```javascript
-structuredContent: { title: "...", editUrl: "..." }  // No topology!
+connections: [{from: "hq1"}]  // incomplete - missing "to" field
 ```
 
-**Fix in v24:** Server now returns complete topology in structuredContent:
+**Solution: Event-based connection gating**
+
+1. Widget renders **nodes immediately** during streaming (good UX - user sees progress)
+2. Widget **skips connections** until `ui/notifications/tool-result` event fires
+3. After tool-result, `toolInput` is complete, so connections render correctly
+
 ```javascript
-structuredContent: { topology: validatedTopology, editUrl: "..." }
+let toolResultReceived = false;
+
+// In renderSVG():
+if (toolResultReceived) {
+  // Render connections - data is complete
+} else {
+  // Skip connections - still streaming
+}
+
+// On tool-result notification:
+window.addEventListener('message', (event) => {
+  if (event.data?.method === 'ui/notifications/tool-result') {
+    toolResultReceived = true;
+    renderSVG(); // Re-render with connections
+  }
+});
 ```
 
-Now `window.openai.toolOutput.topology` contains the complete validated data.
+**Data sources:**
+- `window.openai.toolInput` = Arguments ChatGPT sends TO the tool (complete after tool-result)
+- `window.openai.toolOutput` = The `structuredContent` from the tool's response (backup)
 
 ## Architecture Overview
 

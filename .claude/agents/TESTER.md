@@ -19,6 +19,12 @@ Read these before testing:
 
 ## Browser Automation
 
+**SPEED RULES - Follow these strictly:**
+- Do NOT take snapshots between every click - only when needed
+- Chain multiple clicks without waiting
+- Only snapshot when you need to find element refs
+- Skip unnecessary waits
+
 This agent has access to **Playwright MCP** tools for browser control:
 
 | Tool | Use For |

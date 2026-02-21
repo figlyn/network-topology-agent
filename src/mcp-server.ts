@@ -280,26 +280,32 @@ const SVG_VIEWER_HTML = `
       // Operator cloud
       svg += \`<path d="\${cloudPath(opCX, opCY, opW+80*s, opCloudH)}" fill="\${T.opFill}" stroke="\${T.opStroke}" stroke-width="\${2.5*s}" stroke-dasharray="\${10*s},\${6*s}"/>\`;
 
-      // Connections - with client-side validation
-      console.log('=== RENDERING CONNECTIONS ===');
+      // Connections - ONLY render after tool-result received (streaming complete)
+      // This prevents rendering incomplete connections during streaming
       const nodeIdSet = new Set(Object.keys(layout.pos));
-      console.log('Layout node IDs:', Array.from(nodeIdSet));
 
-      // Filter valid connections first
-      const validConnections = (topology.connections||[]).filter((conn, idx) => {
-        if (!conn || typeof conn.from !== 'string' || typeof conn.to !== 'string') {
-          console.warn('SKIP connection', idx, '- malformed:', JSON.stringify(conn));
-          return false;
-        }
-        if (!nodeIdSet.has(conn.from) || !nodeIdSet.has(conn.to)) {
-          console.warn('SKIP connection', idx, conn.from, '->', conn.to, '| from exists:', nodeIdSet.has(conn.from), 'to exists:', nodeIdSet.has(conn.to));
-          return false;
-        }
-        return true;
-      });
-      console.log('Valid connections:', validConnections.length, '/', (topology.connections||[]).length);
+      if (!toolResultReceived) {
+        console.log('=== SKIPPING CONNECTIONS (waiting for tool-result) ===');
+        console.log('Nodes ready:', nodeIdSet.size, '| Connections pending:', (topology.connections||[]).length);
+      } else {
+        console.log('=== RENDERING CONNECTIONS (tool-result received) ===');
+        console.log('Layout node IDs:', Array.from(nodeIdSet));
 
-      validConnections.forEach((conn, idx) => {
+        // Filter valid connections first
+        const validConnections = (topology.connections||[]).filter((conn, idx) => {
+          if (!conn || typeof conn.from !== 'string' || typeof conn.to !== 'string') {
+            console.warn('SKIP connection', idx, '- malformed:', JSON.stringify(conn));
+            return false;
+          }
+          if (!nodeIdSet.has(conn.from) || !nodeIdSet.has(conn.to)) {
+            console.warn('SKIP connection', idx, conn.from, '->', conn.to, '| from exists:', nodeIdSet.has(conn.from), 'to exists:', nodeIdSet.has(conn.to));
+            return false;
+          }
+          return true;
+        });
+        console.log('Valid connections:', validConnections.length, '/', (topology.connections||[]).length);
+
+        validConnections.forEach((conn, idx) => {
         const f = getPos(conn.from, layout), t = getPos(conn.to, layout);
         if (!f || !t) return; // Shouldn't happen after filter, but safety check
         console.log('DRAW connection', idx, conn.from, '->', conn.to);
@@ -330,6 +336,7 @@ const SVG_VIEWER_HTML = `
           svg += \`<text x="\${mx}" y="\${my+4*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
         }
       });
+      } // End of toolResultReceived check for connections
 
       // Nodes
       allNodes.forEach(nd => {
@@ -730,14 +737,9 @@ const SVG_VIEWER_HTML = `
       if (data) {
         initialized = true;
         topology = data;
-        // Only render immediately if we already got tool-result, otherwise show progress
-        if (toolResultReceived) {
-          console.log('Data ready + tool-result received, rendering');
-          renderSVG();
-        } else {
-          console.log('Data loaded, showing progress while waiting for completion...');
-          showProgress(data);
-        }
+        // Always render immediately - nodes show during streaming, connections only after tool-result
+        console.log('Data loaded, rendering SVG (toolResultReceived:', toolResultReceived + ')');
+        renderSVG();
         return true;
       }
       return false;
@@ -787,16 +789,12 @@ const SVG_VIEWER_HTML = `
         return;
       }
 
-      // Handle streaming data updates - show progress
+      // Handle streaming data updates - render with nodes (connections wait for tool-result)
       const data = tryGetData(msg);
       if (data) {
         topology = data;
-        if (toolResultReceived) {
-          renderSVG();
-        } else {
-          // Update progress display with latest counts
-          showProgress(data);
-        }
+        // Always render - nodes show immediately, connections only after tool-result
+        renderSVG();
       }
     });
 
@@ -832,8 +830,8 @@ const SVG_VIEWER_HTML = `
 `.trim();
 
 // Resource URI for the interactive canvas widget
-// v26: Add openai/outputTemplate and openai/widgetAccessible to response _meta
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v26.html";
+// v27: Event-based connection rendering - nodes show immediately, connections after tool-result
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v27.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
