@@ -141,6 +141,58 @@ Deployer (pre-checks) → Deployer (staging) → Tester → Mobile Tester → De
 | Layout issue | Responsive Design | Developer |
 | Deployment | Deployer | Tester |
 | Incident | Debugger → Deployer | Developer |
+| Security audit | Security Agent | - |
+| Issue review | Orchestrator | QA Lead |
+
+### MANDATORY: Agent Delegation Rules
+
+**DO NOT rush to do tasks yourself. ALWAYS delegate to specialized agents.**
+
+#### You MUST use subagents for:
+
+| Task | Required Agent | Why |
+|------|----------------|-----|
+| **Any testing** | Tester / Mobile Tester | They follow TESTER.md workflow with proper connector refresh |
+| **Browser automation** | Tester | Has Playwright skills and ChatGPT UI knowledge |
+| **Mobile testing** | Mobile Tester | Proper viewport setup, touch emulation |
+| **Writing test cases** | QA Lead | Follows test case format in TEST-CASES.md |
+| **Implementation** | Developer | Reads skills, follows patterns |
+| **Deployment** | Deployer | Knows staging vs production, verification steps |
+| **Multiple issues** | Orchestrator | Coordinates parallel workflows |
+| **Security checks** | Security Agent | Comprehensive audit patterns |
+| **Connector refresh** | Tester | Full delete/recreate workflow |
+
+#### Self-check before acting:
+
+```
+Before doing ANY task, ask yourself:
+1. Is there a specialized agent for this? → Use it
+2. Does it involve browser/testing? → Use Tester
+3. Does it involve multiple steps? → Use Orchestrator
+4. Am I about to write code? → Use Developer
+5. Am I about to deploy? → Use Deployer
+```
+
+#### Anti-patterns (DO NOT):
+
+- ❌ Directly using Playwright without Tester agent
+- ❌ Writing code without Developer agent for non-trivial changes
+- ❌ Testing without proper connector refresh workflow
+- ❌ Deploying without Deployer agent
+- ❌ Handling multiple issues without Orchestrator
+
+#### Correct pattern:
+
+```bash
+# Instead of doing it yourself:
+Task: "Read .claude/agents/TESTER.md. Test v45 with full connector refresh workflow."
+
+# Instead of manual browser testing:
+Task: "Read .claude/agents/MOBILE-TESTER.md. Test at 375px with touch emulation."
+
+# Instead of fixing multiple issues yourself:
+Task: "Read .claude/agents/ORCHESTRATOR.md. Review and fix all open issues in BACKLOG.md."
+```
 
 ## Build & Development Commands
 
