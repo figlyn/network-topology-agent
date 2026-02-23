@@ -188,23 +188,20 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v40 DEPLOYED TO STAGING** - Hidden iframe download approach (UNTESTED).
+**v41 DEPLOYED AND TESTED** ✅ - Modal approach working correctly.
 
-### Next Session: Complete v40 Testing
+### v41 Test Results (2026-02-23)
 
-**What was done:**
-1. v40 code implemented with hidden iframe approach for downloads
-2. Deployed to staging (verified via curl - server returns v40 code)
-3. Old connector deleted from ChatGPT
+v41 reverts to the v37 modal approach for Save functionality:
+- Console shows: `v41: Modal shown for right-click save, filename: HQ and Branch Connectivity.svg`
+- Modal displays SVG image preview with filename label
+- User right-clicks image → "Save Image As" to download
 
-**What needs to be done:**
-1. Re-create connector in ChatGPT with **Authentication = None** (see TESTER.md section 2b)
-2. Test Save button - should see "v40: Download via hidden iframe" in console
-3. If hidden iframe also fails due to sandbox, revert to v37 modal approach
+**Previous v40 test:** Hidden iframe download approach FAILED - sandbox blocks ALL download attempts.
 
-**Key insight:** ChatGPT caches widget HTML aggressively. Must DELETE and RE-CREATE connector to get fresh code.
+**Key insight:** ChatGPT caches widget HTML aggressively. Use "Refresh" button in connector settings OR delete and re-create connector to get fresh code.
 
-### Save/Export Feature Attempts (v32-v40)
+### Save/Export Feature Attempts (v32-v41)
 
 | Version | Approach | Result |
 |---------|----------|--------|
@@ -216,7 +213,8 @@ npm run test:run && npm run typecheck
 | v37 | Filename label from title | ✅ Works - shows suggested filename |
 | v38 | P1 features (undo/redo, keyboard shortcuts, touch, a11y) | ✅ Deployed |
 | v39 | Form POST with target="_blank" | ❌ Blocked - sandbox lacks `allow-popups` |
-| **v40** | **Hidden iframe form target** | **⏳ UNTESTED - deployed, needs connector refresh** |
+| v40 | Hidden iframe form target | ❌ Blocked - sandbox blocks ALL download attempts |
+| **v41** | **Revert to v37 modal approach** | **✅ Works - modal with right-click save** |
 
 ### Key Learning (Save Feature):
 - **ChatGPT sandbox blocks**: Direct downloads (`allow-downloads`), clipboard write (`clipboard-write`)
@@ -238,7 +236,8 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
-- **v40: (STAGING)** ⏳ Hidden iframe form target for downloads - UNTESTED
+- **v41: (STAGING)** ✅ Modal approach for Save - tested and working
+- v40: ❌ Hidden iframe form target for downloads (BLOCKED - sandbox blocks ALL downloads)
 - v39: Form POST target="_blank" (BLOCKED - sandbox lacks `allow-popups`)
 - v38: ✅ P1 features - Undo/Redo, Keyboard shortcuts, Touch drag, Accessibility
 - v37: ✅ Save modal with filename label from diagram title

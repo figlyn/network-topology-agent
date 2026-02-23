@@ -751,41 +751,40 @@ const SVG_VIEWER_HTML = `
         // Get filename from diagram title
         var filename = (topology?.solutionTitle || 'network-topology').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() + '.svg';
 
-        // v40: Hidden iframe approach - avoids allow-popups restriction
-        // Create hidden iframe as form target, server returns Content-Disposition: attachment
-        var iframe = document.getElementById('downloadFrame');
-        if (!iframe) {
-          iframe = document.createElement('iframe');
-          iframe.id = 'downloadFrame';
-          iframe.name = 'downloadFrame';
-          iframe.style.display = 'none';
-          document.body.appendChild(iframe);
-        }
+        // v41: Modal approach (v37) - ChatGPT sandbox blocks ALL download methods
+        // Show modal with image - user can right-click to save
+        var dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
 
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://staging.nwgrm.org/download';
-        form.target = 'downloadFrame';  // Target hidden iframe instead of _blank
-        form.style.display = 'none';
+        var modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
 
-        var svgInput = document.createElement('input');
-        svgInput.type = 'hidden';
-        svgInput.name = 'svg';
-        svgInput.value = svgData;
-        form.appendChild(svgInput);
+        var img = document.createElement('img');
+        img.src = dataUri;
+        img.alt = filename;
+        img.title = 'Right-click → Save Image As';
+        img.style.cssText = 'max-width:95%;max-height:75vh;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:context-menu';
 
-        var filenameInput = document.createElement('input');
-        filenameInput.type = 'hidden';
-        filenameInput.name = 'filename';
-        filenameInput.value = filename;
-        form.appendChild(filenameInput);
+        // Filename label - so user knows what to name the file
+        var filenameLabel = document.createElement('div');
+        filenameLabel.style.cssText = 'margin-top:12px;padding:8px 16px;background:rgba(255,255,255,0.1);border-radius:6px;font-family:ui-monospace,monospace;font-size:13px;color:#fff;user-select:all;cursor:text';
+        filenameLabel.textContent = filename;
+        filenameLabel.title = 'Click to select, then use as filename when saving';
 
-        document.body.appendChild(form);
-        form.submit();
-        form.remove();
+        var closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:18px;color:#fff;cursor:pointer';
+        closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
+        closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
+        closeBtn.onclick = function() { modal.remove(); };
 
-        announceStatus('Downloading ' + filename);
-        console.log('v40: Download via hidden iframe, filename:', filename);
+        modal.appendChild(img);
+        modal.appendChild(filenameLabel);
+        modal.appendChild(closeBtn);
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        document.body.appendChild(modal);
+
+        announceStatus('Right-click image to save as ' + filename);
+        console.log('v41: Modal shown for right-click save, filename:', filename);
       } catch (e) {
         console.error('Export failed:', e);
       }
@@ -1059,7 +1058,7 @@ const SVG_VIEWER_HTML = `
 // v33: Fix iframe download (BLOCKED - sandbox lacks allow-downloads)
 // v32: Direct SVG export (no modal dialog) - triggers browser save dialog immediately
 // v31: Remove "all valid" shortcut - MUST wait for toolResult OR stable count
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v40-1708711200.html";
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v41-1740307200.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
