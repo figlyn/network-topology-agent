@@ -4,3 +4,10 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# Test artifacts
+.playwright-mcp/
+.wrangler/
+*.png
+test-widget.html
+WIDGET_ISSUES.md

@@ -94,46 +94,54 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v31 DEPLOYED** - All issues resolved. Connections render correctly.
+**v37 DEPLOYED** - Save feature with modal and filename label.
 
-### Fix Summary (v31):
-The root cause was that ChatGPT streams JSON properties incrementally. During streaming, `toolInput.connections` starts with partial data (e.g., 1-2 connections) and more connections arrive over time. Previous versions rendered too early before all connections arrived.
+### Latest Changes (v32-v37): Save/Export Feature
+
+| Version | Approach | Result |
+|---------|----------|--------|
+| v32 | Direct blob download | ❌ Blocked - sandbox lacks `allow-downloads` |
+| v33 | Append anchor to DOM | ❌ Blocked - same sandbox restriction |
+| v34 | Copy to clipboard | ❌ Blocked - Permissions Policy blocks clipboard |
+| v35 | Modal with right-click save | ✅ Works - user right-clicks "Save Image As" |
+| v36 | Clean modal, no text, X button | ✅ Works - cleaner UI |
+| **v37** | **Filename label from title** | **✅ CURRENT - shows suggested filename** |
+
+### Key Learning (Save Feature):
+- **ChatGPT sandbox blocks**: Direct downloads (`allow-downloads`), clipboard write (`clipboard-write`)
+- **Workaround**: Modal with data URI image, user right-clicks to save
+- **Filename**: Derived from `topology.solutionTitle`, shown as selectable label
+
+### Previous Fix (v31): Connection Rendering
+The root cause was ChatGPT streaming JSON incrementally. Previous versions rendered too early before all connections arrived.
 
 **v31 Solution:**
 1. Track connection count across renders
 2. Only render connections when count has been **stable for 3+ consecutive checks**
 3. Retry mechanism polls every 400ms to detect new connections arriving
-4. Do NOT render just because existing connections are valid - wait for stability
 
-### Version History (v28-v31):
-
-| Version | Approach | Result |
-|---------|----------|--------|
-| v28 | Data completeness checking (valid from/to) | Partial - rendered too early |
-| v29 | Stability check in tool-result handler only | Failed - handler didn't always fire |
-| v30 | Stability check in renderSVG + "all valid" shortcut | Failed - shortcut bypassed stability wait |
-| **v31** | **Stability check only (removed shortcut)** | **✅ SUCCESS - 4/4 connections** |
-
-### Key Learning:
+### Key Learning (Connections):
 - **Don't rely on event timing** - `tool-result` event doesn't always fire reliably
-- **Don't use shortcuts** - "all existing connections valid" doesn't mean all connections have arrived
 - **Use stability counting** - wait until connection count stops changing (stable for 3+ checks)
 - **Polling/retry is essential** - new connections arrive asynchronously during streaming
 
 ## Widget Version History
 
-- v31: (CURRENT) ✅ SUCCESS - Stability-based rendering + removed editUrl from response
-  - Wait for connection count stable 3+ checks before rendering
-  - Removed long base64 editUrl from ChatGPT output
-- v30: Stability check in renderSVG (FAILED - "all valid" shortcut bypassed wait)
-- v29: Stability check in tool-result handler only (FAILED - handler didn't always fire)
-- v28: Data completeness checking (PARTIAL - rendered too early with 2/4 connections)
-- v27: Event-based connection rendering (FAILED - didn't verify data completeness)
-- v26: Add openai/outputTemplate and openai/widgetAccessible to response _meta
-- v24-25: Include topology in structuredContent so toolOutput.topology has complete validated data
-- v23: Attempted toolOutput.topology fix - FAILED because server didn't include topology in structuredContent
-- v22: Improved topology validation, defensive array checks, debug logging
-- v21: Dark mode, system fonts, notifyIntrinsicHeight, loading guard
+- **v37: (CURRENT)** ✅ Save modal with filename label from diagram title
+- v36: Clean modal (no text instructions), X close button, tooltip hint
+- v35: Modal with data URI image for right-click save (sandbox workaround)
+- v34: Clipboard copy attempt (BLOCKED by Permissions Policy)
+- v33: DOM anchor download attempt (BLOCKED by sandbox)
+- v32: Direct blob download attempt (BLOCKED - no `allow-downloads`)
+- v31: ✅ Stability-based connection rendering + removed editUrl
+- v30: Stability check in renderSVG (FAILED - shortcut bypassed wait)
+- v29: Stability check in tool-result handler only (FAILED)
+- v28: Data completeness checking (PARTIAL - rendered too early)
+- v27: Event-based connection rendering (FAILED)
+- v26: Add openai/outputTemplate and openai/widgetAccessible
+- v24-25: Include topology in structuredContent
+- v22: Improved topology validation, defensive array checks
+- v21: Dark mode, system fonts, notifyIntrinsicHeight
 - v20: Initial ChatGPT widget with toolInput support
 
 ## Technical Notes - Streaming and Stability-Based Rendering

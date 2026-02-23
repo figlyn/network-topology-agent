@@ -102,7 +102,7 @@ const SVG_VIEWER_HTML = `
         <button onclick="window.zoomOut()">−</button>
         <button onclick="window.zoomIn()">+</button>
       </div>
-      <button onclick="window.exportSVG()">↓ Export</button>
+      <button onclick="window.exportSVG()">💾 Save</button>
       <span class="hint" id="hint"></span>
     </div>
     <div id="canvas" class="canvas">
@@ -573,7 +573,6 @@ const SVG_VIEWER_HTML = `
       if (!svgEl) { console.error('No SVG to export'); return; }
       try {
         var clone = svgEl.cloneNode(true);
-        // Remove transform for export
         clone.style.transform = '';
         clone.setAttribute('width', '1600');
         clone.setAttribute('height', '900');
@@ -582,46 +581,48 @@ const SVG_VIEWER_HTML = `
         var bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         bgRect.setAttribute('width', '100%');
         bgRect.setAttribute('height', '100%');
-        bgRect.setAttribute('fill', '#ffffff');
+        bgRect.setAttribute('fill', isDarkMode ? '#171717' : '#ffffff');
         clone.insertBefore(bgRect, clone.firstChild);
 
         var svgData = new XMLSerializer().serializeToString(clone);
         console.log('SVG data length:', svgData.length);
 
-        // Use blob URL instead of data URL (more reliable for large SVGs)
-        var blob = new Blob([svgData], {type: 'image/svg+xml'});
-        var blobUrl = URL.createObjectURL(blob);
-        console.log('Blob URL created:', blobUrl);
+        // Get filename from diagram title
+        var filename = (topology?.solutionTitle || 'network-topology').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() + '.svg';
 
-        // Create modal using DOM APIs
+        // Create data URI for the image
+        var dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+
+        // Show modal with image - user can right-click to save
         var modal = document.createElement('div');
-        modal.id = 'export-modal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
 
-        var box = document.createElement('div');
-        box.style.cssText = 'background:#fff;padding:24px;border-radius:12px;text-align:center;max-width:90%';
+        var img = document.createElement('img');
+        img.src = dataUri;
+        img.alt = filename;
+        img.title = 'Right-click → Save Image As';
+        img.style.cssText = 'max-width:95%;max-height:75vh;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:context-menu';
 
-        var msg = document.createElement('p');
-        msg.style.cssText = 'margin:0 0 16px;font-size:14px;color:#333';
-        msg.textContent = 'Click Download to save your diagram:';
-
-        var link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = 'network-topology.svg';
-        link.textContent = 'Download SVG';
-        link.style.cssText = 'display:inline-block;padding:12px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500';
+        // Filename label - so user knows what to name the file
+        var filenameLabel = document.createElement('div');
+        filenameLabel.style.cssText = 'margin-top:12px;padding:8px 16px;background:rgba(255,255,255,0.1);border-radius:6px;font-family:ui-monospace,monospace;font-size:13px;color:#fff;user-select:all;cursor:text';
+        filenameLabel.textContent = filename;
+        filenameLabel.title = 'Click to select, then use as filename when saving';
 
         var closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close';
-        closeBtn.style.cssText = 'display:block;margin:16px auto 0;padding:8px 16px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;cursor:pointer;font-size:12px';
-        closeBtn.onclick = function() { modal.remove(); URL.revokeObjectURL(blobUrl); };
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:18px;color:#fff;cursor:pointer';
+        closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
+        closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
+        closeBtn.onclick = function() { modal.remove(); };
 
-        box.appendChild(msg);
-        box.appendChild(link);
-        box.appendChild(closeBtn);
-        modal.appendChild(box);
-        modal.onclick = function(e) { if (e.target === modal) { modal.remove(); URL.revokeObjectURL(blobUrl); } };
+        modal.appendChild(img);
+        modal.appendChild(filenameLabel);
+        modal.appendChild(closeBtn);
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         document.body.appendChild(modal);
+
+        console.log('Export modal shown, filename:', filename);
       } catch (e) {
         console.error('Export failed:', e);
       }
@@ -885,9 +886,14 @@ const SVG_VIEWER_HTML = `
 `.trim();
 
 // Resource URI for the interactive canvas widget
+// v37: Show filename label below image (selectable) so user knows what to name file
+// v36: Clean modal (no text), filename from title, tooltip hint, X close button
+// v35: Modal with data URI image - right-click to "Save Image As"
+// v34: Copy SVG to clipboard (BLOCKED by sandbox permissions policy)
+// v33: Fix iframe download (BLOCKED - sandbox lacks allow-downloads)
+// v32: Direct SVG export (no modal dialog) - triggers browser save dialog immediately
 // v31: Remove "all valid" shortcut - MUST wait for toolResult OR stable count
-//      Prevents rendering with partial connections that happen to be valid
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v31.html";
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v37.html";
 
 // Create MCP server instance
 function createServer(): McpServer {

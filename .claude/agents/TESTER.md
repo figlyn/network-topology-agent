@@ -63,25 +63,62 @@ curl -s https://staging.nwgrm.org/mcp -X POST \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' | jq
 ```
 
-### 2. ChatGPT Connector Setup
+### 2. ChatGPT Connector Setup (2026 UI)
 
-1. Go to ChatGPT → Settings → Apps & Connectors → Advanced → Enable Developer Mode
-2. Go to Settings → Connectors → Create new connector
-3. Fill in the form:
-   - **App name:** `Network Gramm`
-   - **Description:** `Network Topology creation for Telco Business Project. Provides simple visualization of nw diagrams from text.`
-   - **MCP URL:** `https://staging.nwgrm.org/mcp`
-   - **Auth:** No Auth
-   - **Checkbox:** ✓ "I understand"
-4. Click Create and verify tools appear in the connector preview
+#### STEP 1 — Open Connector Settings
+1. Open **chatgpt.com**
+2. Click your **Profile avatar** (bottom-left corner)
+3. Click **Settings**
+4. In the left sidebar, click **Apps & Connectors**
+5. Enable **Developer Mode** if not already enabled (in Advanced settings)
 
-### 2b. Refresh Connector (Clear Widget Cache)
+#### STEP 2 — Create New Connector
+1. Click **+ Add Connector** (top right)
+2. Choose **Custom MCP Connector** (or "Add by URL")
+3. Enter URL: `https://staging.nwgrm.org/mcp`
+4. Click **Connect**
 
-When widget changes aren't taking effect:
-1. Go to ChatGPT → Settings → Connectors
-2. Find "Network Gramm" and delete it
-3. Re-create with the same settings above
-4. This forces ChatGPT to re-fetch the widget template
+#### STEP 3 — Configure Connector Details
+1. Click the connector card to open details
+2. Click the **pencil (Edit)** icon near the name
+3. Set **Name**: `Network Gramm (Staging)`
+4. Set **Description**: `Network Topology diagram generator for Telco B2B projects. Creates Cisco-style network diagrams from text descriptions.`
+5. Click **Save**
+
+**⚠️ IMPORTANT: The description helps ChatGPT understand when to use this tool instead of DALL-E!**
+
+#### STEP 4 — Verify Tools Appear
+1. Click the connector card
+2. Click **View Tools**
+3. You must see tool names, descriptions, and parameter schema
+4. If empty: MCP schema not loading or endpoint issue
+
+### 2b. Refresh Connector (Clear Widget Cache) - MANDATORY FOR CODE CHANGES
+
+⚠️ **ChatGPT aggressively caches widget templates. You MUST delete and re-create to get fresh code.**
+
+#### STEP 1 — Delete Existing Connector
+1. Go to **Settings → Apps & Connectors**
+2. Locate **Network Gramm** in the list
+3. **Hover** over the row to reveal the **(...) three-dot menu** on the right
+4. Click the **(...) menu**
+5. Click **Delete**
+6. Confirm in the modal dialog
+7. If still visible → hard refresh (Cmd+Shift+R / Ctrl+Shift+R)
+
+#### STEP 2 — Re-Add Connector
+1. Click **+ Add Connector** (top right)
+2. Choose **Custom MCP Connector**
+3. Enter URL: `https://staging.nwgrm.org/mcp`
+4. Click **Connect**
+5. Click the connector card → pencil icon
+6. Set **Name**: `Network Gramm (Staging)`
+7. Set **Description**: `Network Topology diagram generator for Telco B2B projects. Creates Cisco-style network diagrams from text descriptions.`
+8. Click **Save**
+
+#### STEP 3 — Verify Fresh Code
+1. Click connector card → **View Tools**
+2. Verify tools appear with correct descriptions
 
 ### 2c. Automated Connector Refresh (Browser Automation)
 
@@ -89,43 +126,89 @@ Use Playwright MCP to automate the refresh:
 
 ```
 # Step 1: Navigate and open settings
-browser_navigate("https://chat.openai.com")
+browser_navigate("https://chatgpt.com")
 browser_snapshot()
+browser_click([profile avatar])
+
+# Step 2: Go to Apps & Connectors
 browser_click("Settings")
-
-# Step 2: Go to Connectors
-browser_click("Connectors")
+browser_snapshot()
+browser_click("Apps & Connectors")
 browser_snapshot()
 
-# Step 3: Delete existing connector
-browser_click("Network Gramm")
+# Step 3: Delete existing connector (HOVER to reveal menu!)
+# Look for Network Gramm row, hover to reveal (...) menu
+browser_hover([Network Gramm row])
+browser_snapshot()  # Now (...) menu should be visible
+browser_click([three-dot menu])
 browser_click("Delete")
-browser_click("Confirm")  # or similar confirmation
+browser_click([Confirm button])
 
 # Step 4: Create new connector
-browser_click("Create new connector")
-browser_fill("App name", "Network Gramm")
-browser_fill("Description", "Network Topology creation for Telco Business Project. Provides simple visualization of nw diagrams from text.")
-browser_fill("MCP URL", "https://staging.nwgrm.org/mcp")
-browser_click("No Auth")
-browser_click("I understand")
-browser_click("Create")
+browser_click("Add Connector")  # or "+ Add Connector"
+browser_snapshot()
+browser_click("Custom MCP Connector")  # or similar
+browser_type([URL field], "https://staging.nwgrm.org/mcp")
+browser_click("Connect")
 
-# Step 5: Verify
-browser_snapshot()  # Should show tools in preview
+# Step 5: Verify tools loaded
+browser_snapshot()
+browser_click([connector card])
+browser_click("View Tools")
+browser_snapshot()  # Should show tool definitions
 ```
 
-**Note:** You may need to authenticate first. Run `browser_navigate` to ChatGPT and check if logged in.
+**Note:** You may need to authenticate first. Delete button is HIDDEN until you hover!
 
-### 3. Invoking the Connector
+### 3. Invoking the Connector (2026 UI)
 
-**IMPORTANT:** To use the connector in a chat, prefix your prompt with `/Network Gramm`:
+⚠️ **CRITICAL: ChatGPT may use DALL-E image generation instead of the connector!**
 
-```
-/Network Gramm Create a simple SD-WAN diagram with HQ and 2 branches
-```
+You MUST explicitly invoke the connector AND mention the tool in your prompt.
 
-This tells ChatGPT to use the Network Gramm connector for the request.
+#### Method A: Tools Icon + Explicit Tool Mention (Most Reliable)
+1. Click **+ New Chat**
+2. In the message bar, click the **Tools icon** (small plug icon)
+3. Select **Network Gramm (Staging)** from the list
+4. Send your request **mentioning "Network Gramm" in the prompt**:
+   ```
+   Use Network Gramm to create a network topology with HQ and 2 branches connected to a router
+   ```
+
+#### Method B: Slash Command Prefix (Reliable)
+1. Click **+ New Chat**
+2. Type your prompt with `/Network Gramm` prefix:
+   ```
+   /Network Gramm Create a network topology with HQ and 2 branches connected to a router
+   ```
+
+#### Method C: Explicit Tool Request in Prompt
+1. Click **+ New Chat** (with connector already enabled)
+2. Be very explicit about which tool to use:
+   ```
+   Using the Network Gramm tool, generate a network diagram showing HQ and 2 branches connected to a router
+   ```
+
+**⚠️ NEVER send vague prompts like "Create a diagram" - ChatGPT will use DALL-E!**
+**✅ ALWAYS mention "Network Gramm" or use `/Network Gramm` prefix in your prompt.**
+
+### 3b. Verify Connector Was Used (NOT DALL-E)
+
+**✅ CORRECT - Network Gramm connector:**
+- You see a **widget** with toolbar (Edit, Zoom, Export buttons)
+- Console shows `renderSVG called`
+- Tool call shows `generate_network_diagram`
+
+**❌ WRONG - DALL-E image generation:**
+- You see a static **image** (PNG/JPG)
+- No widget toolbar
+- No Edit/Export buttons
+- Image has DALL-E watermark or artistic style
+
+**If DALL-E is used instead:**
+1. Delete the message
+2. Try Method B with explicit `/Network Gramm` prefix
+3. Or be more specific: "Use the Network Gramm tool to create a network diagram..."
 
 ### 4. Test Checklist
 
@@ -153,11 +236,13 @@ This tells ChatGPT to use the Network Gramm connector for the request.
 
 **Golden Prompts (should trigger tool):**
 
-**IMPORTANT:** Prefix prompts with `/Network Gramm` to invoke the connector:
+**IMPORTANT:** Enable connector via Tools icon (plug) in chat composer first, then send:
 
-1. "/Network Gramm Create a network diagram for a bank with 10 branches connecting to AWS"
-2. "/Network Gramm Draw a 5G topology for a manufacturing plant"
-3. "/Network Gramm Show me an SD-WAN architecture for a retail company"
+1. "Create a network diagram for a bank with 10 branches connecting to AWS"
+2. "Draw a 5G topology for a manufacturing plant"
+3. "Show me an SD-WAN architecture for a retail company"
+
+**Alternative:** Prefix with `/Network Gramm` if Tools icon method doesn't work.
 
 **Negative Prompts (should NOT trigger tool):**
 1. "Explain what SD-WAN is"
@@ -177,9 +262,20 @@ console.log('Debug:', {
 ```
 
 **Force widget refresh:**
-1. Go to Settings → Connectors
-2. Delete the connector
-3. Re-add with same URL
+1. Go to Settings → Apps & Connectors
+2. Hover over connector row to reveal (...) menu
+3. Click (...) → Delete
+4. Re-add with same URL
+
+**2026 UI Quick Reference:**
+
+| What You Expect   | Where It Actually Is          |
+|-------------------|-------------------------------|
+| Delete button     | Hidden in (...) hover menu    |
+| Rename            | Pencil icon inside connector  |
+| Tools list        | Inside connector → View Tools |
+| Manual invocation | Tools icon (plug) in composer |
+| Connector toggle  | Inside connector settings     |
 
 **Check for CSP errors:**
 Look for "Content Security Policy" errors in browser console.
