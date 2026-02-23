@@ -30,6 +30,46 @@ export default {
       return handleRenderRequest(request);
     }
 
+    // Download endpoint - returns SVG with proper Content-Disposition filename
+    if (url.pathname === "/download" && request.method === "POST") {
+      try {
+        let svg: string | null = null;
+        let filename: string | null = null;
+
+        const contentType = request.headers.get("Content-Type") || "";
+
+        if (contentType.includes("application/json")) {
+          const json = await request.json() as { svg: string; filename: string };
+          svg = json.svg;
+          filename = json.filename;
+        } else if (contentType.includes("application/x-www-form-urlencoded")) {
+          const formData = await request.formData();
+          svg = formData.get("svg") as string;
+          filename = formData.get("filename") as string;
+        }
+
+        if (!svg || !filename) {
+          return errorResponse("Missing svg or filename", 400);
+        }
+
+        // Sanitize filename
+        const safeFilename = filename.replace(/[^a-zA-Z0-9-_. ]/g, '').trim() || 'diagram.svg';
+
+        return new Response(svg, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/svg+xml",
+            "Content-Disposition": `attachment; filename="${safeFilename}"`,
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      } catch {
+        return errorResponse("Download error", 500);
+      }
+    }
+
     // Proxy /api/anthropic to Anthropic API
     if (url.pathname === "/api/anthropic" && request.method === "POST") {
       try {

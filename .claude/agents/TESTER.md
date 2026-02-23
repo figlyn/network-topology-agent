@@ -106,15 +106,19 @@ curl -s https://staging.nwgrm.org/mcp -X POST \
 6. Confirm in the modal dialog
 7. If still visible → hard refresh (Cmd+Shift+R / Ctrl+Shift+R)
 
-#### STEP 2 — Re-Add Connector
-1. Click **+ Add Connector** (top right)
-2. Choose **Custom MCP Connector**
-3. Enter URL: `https://staging.nwgrm.org/mcp`
-4. Click **Connect**
-5. Click the connector card → pencil icon
-6. Set **Name**: `Network Gramm (Staging)`
-7. Set **Description**: `Network Topology diagram generator for Telco B2B projects. Creates Cisco-style network diagrams from text descriptions.`
-8. Click **Save**
+#### STEP 2 — Re-Add Connector (2026 UI - "Create app" Dialog)
+1. Go to **Settings → Apps → Advanced settings**
+2. Click **Create app** button
+3. Fill in the **New App** dialog:
+   - **Name**: `Network Gramm (Staging)`
+   - **Description**: `Network Topology diagram generator for Telco B2B projects`
+   - **MCP Server URL**: `https://staging.nwgrm.org/mcp`
+   - **Authentication**: Click dropdown, select **None** (IMPORTANT: default is OAuth which will fail!)
+4. Check the **"I understand and want to continue"** checkbox
+5. Click **Create**
+
+**⚠️ CRITICAL: You MUST set Authentication to "None" before clicking Create!**
+The server doesn't support OAuth. If you get "Error fetching OAuth configuration", you forgot to change Authentication.
 
 #### STEP 3 — Verify Fresh Code
 1. Click connector card → **View Tools**

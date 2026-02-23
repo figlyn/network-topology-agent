@@ -15,38 +15,132 @@ Key reference files for troubleshooting:
 - `.claude/skills/chatgpt-app-builder/references/widget_development.md` - Widget API and patterns
 - `.claude/skills/chatgpt-app-builder/references/node_chatgpt_app.md` - Server implementation patterns
 
+### Recommended External Skills
+
+Install additional skills from these safe repositories:
+
+| Repository | Install | Skills |
+|------------|---------|--------|
+| [anthropics/skills](https://github.com/anthropics/skills) | Official | PDF, DOCX, PPTX, XLSX |
+| [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) | Community | 127+ agents (QA, security, infra) |
+| [lackeyjb/playwright-skill](https://github.com/lackeyjb/playwright-skill) | Community | Browser automation patterns |
+| [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code) | Hackathon winner | 43 skills, 13 agents, 31 commands |
+
+```bash
+# Install official Anthropic skills
+claude mcp add anthropics/skills
+
+# Install all skills from a collection
+npx agent-skills-cli add alirezarezvani/claude-skills
+```
+
+## Issue Tracking
+
+Issues and test cases are tracked separately from this file:
+
+| File | Purpose |
+|------|---------|
+| `.claude/issues/BACKLOG.md` | Active issues with status and priority |
+| `.claude/issues/TEST-CASES.md` | Test cases for each issue (written BEFORE dev) |
+| `.claude/issues/CHANGELOG.md` | Completed work and release history |
+
+### Issue Workflow
+
+```
+new → test-cases → ready → in-progress → review → CHANGELOG
+        ↑                                    ↓
+     QA Lead                              Tester
+```
+
+**Rule:** No implementation without test cases first.
+
+---
+
 ## Sub-Agents
 
-Specialized agent configurations for different workflows:
+Specialized agent configurations for different workflows. The **Orchestrator** coordinates multi-agent workflows.
 
+### Agent Roster
+
+#### Orchestration & QA
 | Agent | File | Purpose |
 |-------|------|---------|
-| **Tester** | `.claude/agents/TESTER.md` | Manual QA testing in ChatGPT web interface |
+| **Orchestrator** | `.claude/agents/ORCHESTRATOR.md` | Coordinates multi-agent workflows, delegates tasks |
+| **QA Lead** | `.claude/agents/QA-LEAD.md` | Defines test cases, reviews results, signs off |
+
+#### Core Development
+| Agent | File | Purpose |
+|-------|------|---------|
 | **Developer** | `.claude/agents/DEVELOPER.md` | Implementation with skills + web search |
+| **Debugger** | `.claude/agents/DEBUGGER.md` | Runtime issue investigation, log analysis |
+| **Deployer** | `.claude/agents/DEPLOYER.md` | Cloudflare Workers deployment, verification |
+
+#### Quality & Testing
+| Agent | File | Purpose |
+|-------|------|---------|
+| **Tester** | `.claude/agents/TESTER.md` | Manual QA in ChatGPT web interface |
+| **Mobile Tester** | `.claude/agents/MOBILE-TESTER.md` | Testing at mobile breakpoints (375px+) |
+| **Accessibility** | `.claude/agents/ACCESSIBILITY.md` | WCAG 2.1 AA compliance, screen readers |
+
+#### Design & UX
+| Agent | File | Purpose |
+|-------|------|---------|
+| **UX Auditor** | `.claude/agents/UX-AUDITOR.md` | Usability heuristics, experience review |
+| **Responsive Design** | `.claude/agents/RESPONSIVE-DESIGN.md` | Fluid layouts, breakpoint fixes |
+| **Touch Interaction** | `.claude/agents/TOUCH-INTERACTION.md` | Touch events, gesture handling |
 
 ### Using Agents with Task Tool
 
+```bash
+# Single agent invocation
+Task: "Read .claude/agents/DEVELOPER.md. Implement dark mode toggle in toolbar."
+
+# Orchestrated workflow (complex tasks)
+Task: "Read .claude/agents/ORCHESTRATOR.md. Coordinate a full release: implement feature, test on desktop and mobile, deploy to staging."
+
+# Parallel agent invocation (multiple Task calls in one message)
+Task: "Read .claude/agents/MOBILE-TESTER.md. Test widget at 375px viewport."
+Task: "Read .claude/agents/ACCESSIBILITY.md. Run WCAG audit on the widget."
 ```
-# Spawn a Tester agent
-Task: "Act as TESTER agent. Read .claude/agents/TESTER.md and test the current widget in ChatGPT. Report any issues with connections rendering."
 
-# Spawn a Developer agent
-Task: "Act as DEVELOPER agent. Read .claude/agents/DEVELOPER.md. Search web for 'MCP protocol widget streaming 2026' and implement fix for connections not rendering."
+### Common Workflows
+
+#### Feature Development
+```
+Developer → Tester → Mobile Tester → Accessibility → Deployer
 ```
 
-### Agent Capabilities
+#### Bug Fix
+```
+Debugger → Developer → Tester → Deployer
+```
 
-**Tester Agent:**
-- Tests widgets in ChatGPT web interface
-- Follows Phase 4 testing checklist from skill
-- Reports bugs with reproduction steps
-- Uses browser console for debugging
+#### Release
+```
+Deployer (pre-checks) → Deployer (staging) → Tester → Mobile Tester → Deployer (production)
+```
 
-**Developer Agent:**
-- Implements MCP server and widget code
-- Searches web for current documentation (2026)
-- Applies security patterns from skill references
-- Runs tests and deploys to staging
+#### Usability Review (Parallel)
+```
+┌─ UX Auditor
+├─ Mobile Tester
+├─ Accessibility
+└─ Responsive Design
+→ Aggregate findings
+```
+
+### Agent Decision Matrix
+
+| Task Type | Primary Agent | Support Agents |
+|-----------|---------------|----------------|
+| New feature | Developer | Tester, Deployer |
+| Bug fix | Debugger → Developer | Tester |
+| Mobile issue | Mobile Tester | Touch Interaction, Developer |
+| Accessibility | Accessibility | Developer |
+| UX improvement | UX Auditor | Developer |
+| Layout issue | Responsive Design | Developer |
+| Deployment | Deployer | Tester |
+| Incident | Debugger → Deployer | Developer |
 
 ## Build & Development Commands
 
@@ -94,9 +188,23 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v37 DEPLOYED** - Save feature with modal and filename label.
+**v40 DEPLOYED TO STAGING** - Hidden iframe download approach (UNTESTED).
 
-### Latest Changes (v32-v37): Save/Export Feature
+### Next Session: Complete v40 Testing
+
+**What was done:**
+1. v40 code implemented with hidden iframe approach for downloads
+2. Deployed to staging (verified via curl - server returns v40 code)
+3. Old connector deleted from ChatGPT
+
+**What needs to be done:**
+1. Re-create connector in ChatGPT with **Authentication = None** (see TESTER.md section 2b)
+2. Test Save button - should see "v40: Download via hidden iframe" in console
+3. If hidden iframe also fails due to sandbox, revert to v37 modal approach
+
+**Key insight:** ChatGPT caches widget HTML aggressively. Must DELETE and RE-CREATE connector to get fresh code.
+
+### Save/Export Feature Attempts (v32-v40)
 
 | Version | Approach | Result |
 |---------|----------|--------|
@@ -105,7 +213,10 @@ npm run test:run && npm run typecheck
 | v34 | Copy to clipboard | ❌ Blocked - Permissions Policy blocks clipboard |
 | v35 | Modal with right-click save | ✅ Works - user right-clicks "Save Image As" |
 | v36 | Clean modal, no text, X button | ✅ Works - cleaner UI |
-| **v37** | **Filename label from title** | **✅ CURRENT - shows suggested filename** |
+| v37 | Filename label from title | ✅ Works - shows suggested filename |
+| v38 | P1 features (undo/redo, keyboard shortcuts, touch, a11y) | ✅ Deployed |
+| v39 | Form POST with target="_blank" | ❌ Blocked - sandbox lacks `allow-popups` |
+| **v40** | **Hidden iframe form target** | **⏳ UNTESTED - deployed, needs connector refresh** |
 
 ### Key Learning (Save Feature):
 - **ChatGPT sandbox blocks**: Direct downloads (`allow-downloads`), clipboard write (`clipboard-write`)
@@ -127,7 +238,10 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
-- **v37: (CURRENT)** ✅ Save modal with filename label from diagram title
+- **v40: (STAGING)** ⏳ Hidden iframe form target for downloads - UNTESTED
+- v39: Form POST target="_blank" (BLOCKED - sandbox lacks `allow-popups`)
+- v38: ✅ P1 features - Undo/Redo, Keyboard shortcuts, Touch drag, Accessibility
+- v37: ✅ Save modal with filename label from diagram title
 - v36: Clean modal (no text instructions), X close button, tooltip hint
 - v35: Modal with data URI image for right-click save (sandbox workaround)
 - v34: Clipboard copy attempt (BLOCKED by Permissions Policy)

@@ -97,12 +97,13 @@ const SVG_VIEWER_HTML = `
 <body>
   <div class="container">
     <div class="toolbar">
-      <button id="editBtn" onclick="window.toggleEdit()">✎ Edit</button>
-      <div class="zoom-group">
-        <button onclick="window.zoomOut()">−</button>
-        <button onclick="window.zoomIn()">+</button>
+      <button id="editBtn" onclick="window.toggleEdit()" aria-label="Edit diagram layout" aria-pressed="false"><span aria-hidden="true">✎</span> Edit</button>
+      <div class="zoom-group" role="group" aria-label="Zoom controls">
+        <button onclick="window.zoomOut()" aria-label="Zoom out">−</button>
+        <span id="zoomLevel" style="min-width:45px;text-align:center;font-size:12px;color:var(--color-text-secondary)">100%</span>
+        <button onclick="window.zoomIn()" aria-label="Zoom in">+</button>
       </div>
-      <button onclick="window.exportSVG()">💾 Save</button>
+      <button onclick="window.exportSVG()" aria-label="Save diagram as image"><span aria-hidden="true">💾</span> Save</button>
       <span class="hint" id="hint"></span>
     </div>
     <div id="canvas" class="canvas">
@@ -122,6 +123,61 @@ const SVG_VIEWER_HTML = `
     var scale = 1.0;
     var activeInput = null;
     var isDarkMode = false;
+
+    // UX-001: Undo/Redo history (use undoStack to avoid conflict with window.history)
+    var undoStack = [];
+    var undoIndex = -1;
+
+    function saveState() {
+      // Remove any future states if we're not at the end
+      undoStack.splice(undoIndex + 1);
+      // Save current state
+      undoStack.push(JSON.parse(JSON.stringify({ overrides: overrides, topology: topology })));
+      undoIndex = undoStack.length - 1;
+      // Limit history to 50 entries
+      if (undoStack.length > 50) {
+        undoStack.shift();
+        undoIndex--;
+      }
+    }
+
+    function undo() {
+      if (undoIndex > 0) {
+        undoIndex--;
+        var state = undoStack[undoIndex];
+        overrides = JSON.parse(JSON.stringify(state.overrides));
+        topology = JSON.parse(JSON.stringify(state.topology));
+        renderSVG();
+        announceStatus('Undo');
+      }
+    }
+
+    function redo() {
+      if (undoIndex < undoStack.length - 1) {
+        undoIndex++;
+        var state = undoStack[undoIndex];
+        overrides = JSON.parse(JSON.stringify(state.overrides));
+        topology = JSON.parse(JSON.stringify(state.topology));
+        renderSVG();
+        announceStatus('Redo');
+      }
+    }
+
+    // A11Y: Screen reader announcements
+    var statusEl = null;
+    function announceStatus(message) {
+      if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.setAttribute('aria-live', 'polite');
+        statusEl.setAttribute('aria-atomic', 'true');
+        statusEl.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
+        document.body.appendChild(statusEl);
+      }
+      statusEl.textContent = message;
+    }
+
+    // MOB-001: Touch detection
+    var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     // Theme colors - updated dynamically based on dark/light mode
     var TLight = {
@@ -260,7 +316,10 @@ const SVG_VIEWER_HTML = `
 
       var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
       var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
-      var svg = '<svg width="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="font-family:' + fontSans + '" preserveAspectRatio="xMidYMid meet">';
+      // A11Y-001: SVG with role, aria-label, and title for screen readers
+      var diagramTitle = topology.solutionTitle || 'Network Topology';
+      var svg = '<svg width="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="font-family:' + fontSans + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Network diagram: ' + diagramTitle + '">';
+      svg += '<title>' + diagramTitle + '</title>';
 
       // Background with theme-aware colors
       const gridSize = 20 * s;
@@ -417,10 +476,12 @@ const SVG_VIEWER_HTML = `
       const w = 1600 * scale, h = 900 * scale;
       const layout = computeLayout(topology, w, h, scale);
 
-      // Drag handlers (only in edit mode)
+      // Drag handlers (only in edit mode) - mouse and touch
       if (editMode) {
         svgEl.querySelectorAll('[data-node]').forEach(g => {
           const nodeId = g.dataset.node;
+
+          // Mouse drag
           g.addEventListener('mousedown', e => {
             if (e.target.closest('[data-label]') || e.target.closest('[data-param]')) return;
             e.preventDefault();
@@ -431,6 +492,19 @@ const SVG_VIEWER_HTML = `
             dragState = { nodeId, offsetX: svgPt.x - p.cx, offsetY: svgPt.y - p.cy };
             canvas.classList.add('dragging');
           });
+
+          // MOB-001: Touch drag
+          g.addEventListener('touchstart', function(e) {
+            if (e.target.closest('[data-label]') || e.target.closest('[data-param]')) return;
+            e.preventDefault();
+            var touch = e.touches[0];
+            var pt = svgEl.createSVGPoint();
+            pt.x = touch.clientX; pt.y = touch.clientY;
+            var svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+            var p = getPos(nodeId, layout);
+            dragState = { nodeId, offsetX: svgPt.x - p.cx, offsetY: svgPt.y - p.cy };
+            canvas.classList.add('dragging');
+          }, { passive: false });
         });
       }
 
@@ -508,7 +582,10 @@ const SVG_VIEWER_HTML = `
       const save = () => {
         if (!activeInput) return;
         const val = input.value.trim();
-        if (saveCallback && val) saveCallback(val);
+        if (saveCallback && val) {
+          saveCallback(val);
+          saveState(); // UX-001: Save state after text edit for undo
+        }
         input.remove();
         activeInput = null;
         renderSVG();
@@ -543,29 +620,113 @@ const SVG_VIEWER_HTML = `
     });
 
     document.addEventListener('mouseup', () => {
+      if (dragState) {
+        saveState(); // UX-001: Save state after drag for undo
+      }
       dragState = null;
       canvas.classList.remove('dragging');
+    });
+
+    // MOB-001: Touch event handlers for drag
+    document.addEventListener('touchmove', function(e) {
+      if (!dragState || !svgEl || !editMode) return;
+      e.preventDefault();
+      var touch = e.touches[0];
+      var w = 1600 * scale, h = 900 * scale;
+      var layout = computeLayout(topology, w, h, scale);
+      var pt = svgEl.createSVGPoint();
+      pt.x = touch.clientX; pt.y = touch.clientY;
+      var svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+      var base = layout.pos[dragState.nodeId];
+      if (!base) return;
+      overrides[dragState.nodeId] = {
+        dx: svgPt.x - dragState.offsetX - base.cx,
+        dy: svgPt.y - dragState.offsetY - base.cy
+      };
+      renderSVG();
+    }, { passive: false });
+
+    document.addEventListener('touchend', function() {
+      if (dragState) {
+        saveState(); // UX-001: Save state after touch drag
+      }
+      dragState = null;
+      canvas.classList.remove('dragging');
+    });
+
+    // UX-002: Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      // Check for Cmd (Mac) or Ctrl (Windows)
+      var isMod = e.metaKey || e.ctrlKey;
+
+      if (isMod) {
+        switch(e.key.toLowerCase()) {
+          case 's':
+            e.preventDefault();
+            window.exportSVG();
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            redo();
+            break;
+          case '=':
+          case '+':
+            e.preventDefault();
+            window.zoomIn();
+            break;
+          case '-':
+            e.preventDefault();
+            window.zoomOut();
+            break;
+        }
+      }
+
+      if (e.key === 'Escape') {
+        if (activeInput) {
+          activeInput.remove();
+          activeInput = null;
+        } else if (editMode) {
+          window.toggleEdit();
+        }
+      }
     });
 
     // Global functions for button onclick handlers
     window.toggleEdit = function() {
       editMode = !editMode;
       editBtn.classList.toggle('active', editMode);
-      editBtn.textContent = editMode ? '✓ Editing' : '✎ Edit';
+      editBtn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
+      editBtn.innerHTML = editMode ? '<span aria-hidden="true">✓</span> Editing' : '<span aria-hidden="true">✎</span> Edit';
       hint.textContent = editMode ? 'Drag nodes · Double-click to edit' : 'Double-click text to edit';
       canvas.classList.toggle('edit-mode', editMode);
+      announceStatus(editMode ? 'Edit mode enabled' : 'Edit mode disabled');
       renderSVG();
     };
+
+    function updateZoomDisplay() {
+      var zoomEl = document.getElementById('zoomLevel');
+      if (zoomEl) zoomEl.textContent = Math.round(scale * 100) + '%';
+    }
 
     window.zoomIn = function() {
       scale = Math.min(scale + 0.15, 1.8);
       console.log('Zoom in, new scale:', scale);
+      updateZoomDisplay();
       renderSVG();
     };
 
     window.zoomOut = function() {
       scale = Math.max(scale - 0.15, 0.7);
       console.log('Zoom out, new scale:', scale);
+      updateZoomDisplay();
       renderSVG();
     };
 
@@ -590,39 +751,41 @@ const SVG_VIEWER_HTML = `
         // Get filename from diagram title
         var filename = (topology?.solutionTitle || 'network-topology').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() + '.svg';
 
-        // Create data URI for the image
-        var dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+        // v40: Hidden iframe approach - avoids allow-popups restriction
+        // Create hidden iframe as form target, server returns Content-Disposition: attachment
+        var iframe = document.getElementById('downloadFrame');
+        if (!iframe) {
+          iframe = document.createElement('iframe');
+          iframe.id = 'downloadFrame';
+          iframe.name = 'downloadFrame';
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+        }
 
-        // Show modal with image - user can right-click to save
-        var modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://staging.nwgrm.org/download';
+        form.target = 'downloadFrame';  // Target hidden iframe instead of _blank
+        form.style.display = 'none';
 
-        var img = document.createElement('img');
-        img.src = dataUri;
-        img.alt = filename;
-        img.title = 'Right-click → Save Image As';
-        img.style.cssText = 'max-width:95%;max-height:75vh;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:context-menu';
+        var svgInput = document.createElement('input');
+        svgInput.type = 'hidden';
+        svgInput.name = 'svg';
+        svgInput.value = svgData;
+        form.appendChild(svgInput);
 
-        // Filename label - so user knows what to name the file
-        var filenameLabel = document.createElement('div');
-        filenameLabel.style.cssText = 'margin-top:12px;padding:8px 16px;background:rgba(255,255,255,0.1);border-radius:6px;font-family:ui-monospace,monospace;font-size:13px;color:#fff;user-select:all;cursor:text';
-        filenameLabel.textContent = filename;
-        filenameLabel.title = 'Click to select, then use as filename when saving';
+        var filenameInput = document.createElement('input');
+        filenameInput.type = 'hidden';
+        filenameInput.name = 'filename';
+        filenameInput.value = filename;
+        form.appendChild(filenameInput);
 
-        var closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:18px;color:#fff;cursor:pointer';
-        closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
-        closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
-        closeBtn.onclick = function() { modal.remove(); };
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
 
-        modal.appendChild(img);
-        modal.appendChild(filenameLabel);
-        modal.appendChild(closeBtn);
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        document.body.appendChild(modal);
-
-        console.log('Export modal shown, filename:', filename);
+        announceStatus('Downloading ' + filename);
+        console.log('v40: Download via hidden iframe, filename:', filename);
       } catch (e) {
         console.error('Export failed:', e);
       }
@@ -776,6 +939,7 @@ const SVG_VIEWER_HTML = `
         // Always render immediately - nodes show during streaming, connections only after tool-result
         console.log('Data loaded, rendering SVG (toolResultReceived:', toolResultReceived + ')');
         renderSVG();
+        saveState(); // UX-001: Save initial state for undo
         return true;
       }
       return false;
@@ -886,6 +1050,8 @@ const SVG_VIEWER_HTML = `
 `.trim();
 
 // Resource URI for the interactive canvas widget
+// v39: Server-side download with proper filename via Content-Disposition header
+// v38: P1 fixes - Undo/Redo, Keyboard shortcuts, Touch drag, SVG accessibility
 // v37: Show filename label below image (selectable) so user knows what to name file
 // v36: Clean modal (no text), filename from title, tooltip hint, X close button
 // v35: Modal with data URI image - right-click to "Save Image As"
@@ -893,7 +1059,7 @@ const SVG_VIEWER_HTML = `
 // v33: Fix iframe download (BLOCKED - sandbox lacks allow-downloads)
 // v32: Direct SVG export (no modal dialog) - triggers browser save dialog immediately
 // v31: Remove "all valid" shortcut - MUST wait for toolResult OR stable count
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v37.html";
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v40-1708711200.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
