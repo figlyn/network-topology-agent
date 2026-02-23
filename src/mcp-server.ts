@@ -75,11 +75,12 @@ const SVG_VIEWER_HTML = `
       padding: 8px 14px; border-radius: 6px; border: 1px solid var(--color-border);
       background: var(--color-bg); color: var(--color-text-secondary); font-size: 13px; cursor: pointer;
       font-family: var(--font-mono); transition: all 0.2s;
+      min-height: 44px; min-width: 44px; /* MOB-002: Touch target size */
     }
     .toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-border-hover); }
     .toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); }
-    .toolbar .zoom-group { display: flex; gap: 2px; }
-    .toolbar .zoom-group button { padding: 8px 12px; font-size: 16px; font-weight: bold; }
+    .toolbar .zoom-group { display: flex; gap: 2px; align-items: center; }
+    .toolbar .zoom-group button { padding: 8px 12px; font-size: 16px; font-weight: bold; min-width: 44px; }
     .toolbar .hint { font-size: 11px; color: var(--color-text-muted); margin-left: auto; }
     .canvas { width: 100%; overflow: auto; border-radius: 8px; background: var(--color-bg-soft); border: 1px solid var(--color-border); position: relative; }
     .canvas svg { display: block; cursor: default; }
@@ -605,16 +606,33 @@ const SVG_VIEWER_HTML = `
 
     document.addEventListener('mousemove', e => {
       if (!dragState || !svgEl) return;
-      const w = 1600 * scale, h = 900 * scale;
+      // MOB-004: Use fixed viewBox dimensions (1600x900), not scaled
+      const w = 1600, h = 900;
       const layout = computeLayout(topology, w, h, scale);
       const pt = svgEl.createSVGPoint();
       pt.x = e.clientX; pt.y = e.clientY;
       const svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
       const base = layout.pos[dragState.nodeId];
       if (!base) return;
+
+      // UX-004: Calculate desired new center position
+      var desiredCx = svgPt.x - dragState.offsetX;
+      var desiredCy = svgPt.y - dragState.offsetY;
+
+      // UX-004: Bounds checking - clamp node center within viewBox
+      // Keep node fully visible (account for node size + small padding)
+      var iW = layout.iW, iH = layout.iH;
+      var minX = iW / 2 + 10;
+      var maxX = 1600 - iW / 2 - 10;
+      var minY = iH / 2 + 10;
+      var maxY = 900 - iH / 2 - 30; // Extra padding at bottom for labels
+
+      var clampedCx = Math.max(minX, Math.min(maxX, desiredCx));
+      var clampedCy = Math.max(minY, Math.min(maxY, desiredCy));
+
       overrides[dragState.nodeId] = {
-        dx: svgPt.x - dragState.offsetX - base.cx,
-        dy: svgPt.y - dragState.offsetY - base.cy
+        dx: clampedCx - base.cx,
+        dy: clampedCy - base.cy
       };
       renderSVG();
     });
@@ -628,20 +646,37 @@ const SVG_VIEWER_HTML = `
     });
 
     // MOB-001: Touch event handlers for drag
+    // UX-004: Touch drag also has bounds checking
     document.addEventListener('touchmove', function(e) {
       if (!dragState || !svgEl || !editMode) return;
       e.preventDefault();
       var touch = e.touches[0];
-      var w = 1600 * scale, h = 900 * scale;
+      // MOB-004: Use fixed viewBox dimensions (1600x900), not scaled
+      var w = 1600, h = 900;
       var layout = computeLayout(topology, w, h, scale);
       var pt = svgEl.createSVGPoint();
       pt.x = touch.clientX; pt.y = touch.clientY;
       var svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
       var base = layout.pos[dragState.nodeId];
       if (!base) return;
+
+      // UX-004: Calculate desired new center position
+      var desiredCx = svgPt.x - dragState.offsetX;
+      var desiredCy = svgPt.y - dragState.offsetY;
+
+      // UX-004: Bounds checking - clamp node center within viewBox
+      var iW = layout.iW, iH = layout.iH;
+      var minX = iW / 2 + 10;
+      var maxX = 1600 - iW / 2 - 10;
+      var minY = iH / 2 + 10;
+      var maxY = 900 - iH / 2 - 30; // Extra padding at bottom for labels
+
+      var clampedCx = Math.max(minX, Math.min(maxX, desiredCx));
+      var clampedCy = Math.max(minY, Math.min(maxY, desiredCy));
+
       overrides[dragState.nodeId] = {
-        dx: svgPt.x - dragState.offsetX - base.cx,
-        dy: svgPt.y - dragState.offsetY - base.cy
+        dx: clampedCx - base.cx,
+        dy: clampedCy - base.cy
       };
       renderSVG();
     }, { passive: false });
@@ -746,49 +781,79 @@ const SVG_VIEWER_HTML = `
         clone.insertBefore(bgRect, clone.firstChild);
 
         var svgData = new XMLSerializer().serializeToString(clone);
-        console.log('SVG data length:', svgData.length);
+        console.log('v45: SVG data length:', svgData.length);
 
         // Get filename from diagram title
-        var filename = (topology?.solutionTitle || 'network-topology').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() + '.svg';
+        var filename = (topology?.solutionTitle || 'network-topology').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() + '.png';
 
-        // v41: Modal approach (v37) - ChatGPT sandbox blocks ALL download methods
-        // Show modal with image - user can right-click to save
-        var dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+        // v45: Convert SVG to PNG for reliable mobile saving
+        // SVG data URIs don't work well with long-press save on mobile
+        var canvas = document.createElement('canvas');
+        canvas.width = 1600;
+        canvas.height = 900;
+        var ctx = canvas.getContext('2d');
 
-        var modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+        var tempImg = new Image();
+        tempImg.onload = function() {
+          ctx.drawImage(tempImg, 0, 0);
+          var pngDataUri = canvas.toDataURL('image/png');
+          console.log('v45: PNG converted, showing modal');
+          showSaveModal(pngDataUri, filename);
+        };
+        tempImg.onerror = function() {
+          console.error('v45: PNG conversion failed, falling back to SVG');
+          var svgUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+          showSaveModal(svgUri, filename.replace('.png', '.svg'));
+        };
+        tempImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
 
-        var img = document.createElement('img');
-        img.src = dataUri;
-        img.alt = filename;
-        img.title = 'Right-click → Save Image As';
-        img.style.cssText = 'max-width:95%;max-height:75vh;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:context-menu';
-
-        // Filename label - so user knows what to name the file
-        var filenameLabel = document.createElement('div');
-        filenameLabel.style.cssText = 'margin-top:12px;padding:8px 16px;background:rgba(255,255,255,0.1);border-radius:6px;font-family:ui-monospace,monospace;font-size:13px;color:#fff;user-select:all;cursor:text';
-        filenameLabel.textContent = filename;
-        filenameLabel.title = 'Click to select, then use as filename when saving';
-
-        var closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:18px;color:#fff;cursor:pointer';
-        closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
-        closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
-        closeBtn.onclick = function() { modal.remove(); };
-
-        modal.appendChild(img);
-        modal.appendChild(filenameLabel);
-        modal.appendChild(closeBtn);
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        document.body.appendChild(modal);
-
-        announceStatus('Right-click image to save as ' + filename);
-        console.log('v41: Modal shown for right-click save, filename:', filename);
       } catch (e) {
         console.error('Export failed:', e);
       }
     };
+
+    function showSaveModal(dataUri, filename) {
+      var modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+
+      var img = document.createElement('img');
+      img.src = dataUri;
+      img.alt = filename;
+      // MOB-003: Show appropriate hint based on device type
+      var saveHint = isTouchDevice ? 'Long-press to save image' : 'Right-click → Save Image As';
+      img.title = saveHint;
+      // MOB-005: Better mobile sizing - use width:100% with max constraints
+      img.style.cssText = 'width:100%;max-width:800px;max-height:70vh;object-fit:contain;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:context-menu';
+
+      // Filename label - so user knows what to name the file
+      var filenameLabel = document.createElement('div');
+      filenameLabel.style.cssText = 'margin-top:12px;padding:8px 16px;background:rgba(255,255,255,0.1);border-radius:6px;font-family:ui-monospace,monospace;font-size:13px;color:#fff;user-select:all;cursor:text;max-width:90%;overflow:hidden;text-overflow:ellipsis';
+      filenameLabel.textContent = filename;
+      filenameLabel.title = 'Suggested filename';
+
+      // MOB-003: Visual hint text for save instructions
+      var hintText = document.createElement('div');
+      hintText.style.cssText = 'margin-top:8px;font-size:14px;color:rgba(255,255,255,0.8);text-align:center;font-weight:500';
+      hintText.textContent = isTouchDevice ? 'Long-press image to save' : 'Right-click image to save';
+
+      var closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:44px;height:44px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:20px;color:#fff;cursor:pointer';
+      closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
+      closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
+      closeBtn.onclick = function() { modal.remove(); };
+
+      modal.appendChild(img);
+      modal.appendChild(filenameLabel);
+      modal.appendChild(hintText);
+      modal.appendChild(closeBtn);
+      modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+      document.body.appendChild(modal);
+
+      // MOB-003: Device-appropriate screen reader announcement
+      announceStatus((isTouchDevice ? 'Long-press' : 'Right-click') + ' image to save as ' + filename);
+      console.log('v45: Modal shown, touch=' + isTouchDevice + ', filename:', filename);
+    }
 
     // Data loading - try many possible locations
     function isValidTopology(data) {
@@ -1058,7 +1123,12 @@ const SVG_VIEWER_HTML = `
 // v33: Fix iframe download (BLOCKED - sandbox lacks allow-downloads)
 // v32: Direct SVG export (no modal dialog) - triggers browser save dialog immediately
 // v31: Remove "all valid" shortcut - MUST wait for toolResult OR stable count
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v41-1740307200.html";
+// v42: MOB-003 - Touch-friendly save modal (long-press hint for touch devices)
+// v43: MOB-002 - Toolbar buttons minimum 44px touch targets
+// v44: UX-004 - Nodes constrained within SVG viewBox (can't be dragged off-screen)
+// v45: MOB-004 - Fix drag handler using wrong scaled dimensions (was 1600*scale, now 1600)
+//      MOB-005 - Convert SVG to PNG for reliable mobile long-press save
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v45-1740571200.html";
 
 // Create MCP server instance
 function createServer(): McpServer {

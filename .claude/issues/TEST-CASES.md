@@ -502,6 +502,295 @@ VoiceOver announces: "Network diagram: [title], image"
 
 ---
 
+## UX-004: Nodes Can Be Dragged Off-Screen
+
+### TC-UX004-01: Drag Node to Left Edge
+
+**Preconditions:**
+- Widget loaded with diagram containing multiple nodes
+- Edit mode enabled
+
+**Steps:**
+1. Identify a node near the center of the canvas
+2. Drag the node toward the left edge of the SVG
+3. Continue dragging past where the left boundary should be
+
+**Expected Result:**
+- Node stops at the left edge boundary
+- Node does not disappear or move outside visible area
+- Node remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-02: Drag Node to Right Edge
+
+**Preconditions:**
+- Widget loaded with diagram containing multiple nodes
+- Edit mode enabled
+
+**Steps:**
+1. Identify a node near the center of the canvas
+2. Drag the node toward the right edge of the SVG
+3. Continue dragging past where the right boundary should be
+
+**Expected Result:**
+- Node stops at the right edge boundary
+- Node does not disappear or move outside visible area
+- Node remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-03: Drag Node to Top Edge
+
+**Preconditions:**
+- Widget loaded with diagram containing multiple nodes
+- Edit mode enabled
+
+**Steps:**
+1. Identify a node near the center of the canvas
+2. Drag the node toward the top edge of the SVG
+3. Continue dragging past where the top boundary should be
+
+**Expected Result:**
+- Node stops at the top edge boundary
+- Node does not disappear or move outside visible area
+- Node remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-04: Drag Node to Bottom Edge
+
+**Preconditions:**
+- Widget loaded with diagram containing multiple nodes
+- Edit mode enabled
+
+**Steps:**
+1. Identify a node near the center of the canvas
+2. Drag the node toward the bottom edge of the SVG
+3. Continue dragging past where the bottom boundary should be
+
+**Expected Result:**
+- Node stops at the bottom edge boundary
+- Node does not disappear or move outside visible area
+- Node remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-05: Drag Node to Top-Left Corner
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node diagonally toward the top-left corner
+2. Continue dragging past where the corner boundaries should be
+
+**Expected Result:**
+- Node stops at both the top and left boundaries simultaneously
+- Node is positioned at the corner but remains fully visible
+- Node does not clip or disappear
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-06: Drag Node to Top-Right Corner
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node diagonally toward the top-right corner
+2. Continue dragging past where the corner boundaries should be
+
+**Expected Result:**
+- Node stops at both the top and right boundaries simultaneously
+- Node is positioned at the corner but remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-07: Drag Node to Bottom-Left Corner
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node diagonally toward the bottom-left corner
+2. Continue dragging past where the corner boundaries should be
+
+**Expected Result:**
+- Node stops at both the bottom and left boundaries simultaneously
+- Node is positioned at the corner but remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-08: Drag Node to Bottom-Right Corner
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node diagonally toward the bottom-right corner
+2. Continue dragging past where the corner boundaries should be
+
+**Expected Result:**
+- Node stops at both the bottom and right boundaries simultaneously
+- Node is positioned at the corner but remains fully visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-09: Visual Feedback at Boundary
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node toward any edge
+2. Observe visual feedback as node approaches boundary
+3. Continue dragging and observe when node stops
+
+**Expected Result:**
+- Clear visual indication when node reaches boundary (e.g., cursor change, subtle highlight, resistance effect)
+- User can perceive that boundary has been reached
+- Feedback is noticeable but not distracting
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-10: Node Positioning at Exact Edge
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node to the left edge
+2. Release the node
+3. Verify node position is at or very close to the edge
+4. Verify node label is still visible
+
+**Expected Result:**
+- Node can be positioned precisely at the edge
+- Node and its label remain fully visible
+- No overlap with zone boundaries that obscures the node
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-11: Boundary Check with Zoomed View
+
+**Preconditions:**
+- Widget loaded with diagram
+- Zoom level changed (e.g., 150%)
+- Edit mode enabled
+
+**Steps:**
+1. Zoom in to 150%
+2. Drag a node toward any edge
+3. Try to drag past the boundary
+
+**Expected Result:**
+- Boundary checking works correctly at zoomed level
+- Node stops at the boundary regardless of zoom level
+- Boundaries scale appropriately with viewBox
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-12: Boundary Check with Touch Drag (Mobile)
+
+**Preconditions:**
+- Widget loaded on touch device
+- Edit mode enabled
+
+**Steps:**
+1. Touch and drag a node toward the edge
+2. Continue dragging past where the boundary should be
+
+**Expected Result:**
+- Node stops at the boundary on touch devices
+- Boundary enforcement works the same as mouse drag
+
+**Test Type:** Manual (Device)
+**Agent:** Mobile Tester
+
+---
+
+### TC-UX004-13: Connections Update When Node at Boundary
+
+**Preconditions:**
+- Widget loaded with diagram
+- Node has connections to other nodes
+- Edit mode enabled
+
+**Steps:**
+1. Drag a connected node to the edge boundary
+2. Observe the connection lines
+
+**Expected Result:**
+- Connection lines update correctly to the bounded position
+- No connection lines extend outside the visible canvas
+- Connections remain visually correct
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX004-14: Undo Restores Position from Boundary
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+- Undo functionality available (UX-001)
+
+**Steps:**
+1. Note a node's original position (center of canvas)
+2. Drag the node to an edge boundary
+3. Press Cmd+Z (or Ctrl+Z on Windows)
+
+**Expected Result:**
+- Node returns to its original position
+- Undo works correctly for boundary-limited positions
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
 ## A11Y-002: Buttons Lack ARIA Labels
 
 ### TC-A11Y002-01: Edit Button Accessible

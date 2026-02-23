@@ -25,6 +25,46 @@ _Issues verified but not yet deployed_
 
 ---
 
+## [v45] - 2026-02-23
+
+### Fixed
+- **Drag handler scale bug** (MOB-004): Fixed drag handlers using wrong scaled dimensions (was `1600*scale`, now fixed `1600`) causing tiny movements on touch devices
+- **Save modal mobile display** (MOB-005): Convert SVG to PNG for reliable mobile long-press save; image now displays properly sized instead of in corner of large white sheet
+
+### Technical
+- Drag handlers now use fixed viewBox dimensions (1600×900) matching SVG viewBox
+- Save converts SVG to PNG via canvas before showing modal
+- PNG format works reliably with mobile long-press save gesture
+
+---
+
+## [v44] - 2026-02-23
+
+### Added
+- **Touch-friendly save modal** (MOB-003): Detects touch devices and shows "Long-press to save" instead of "Right-click"
+- **Drag bounds checking** (UX-004): Nodes constrained within SVG viewBox, can't be dragged off-screen
+
+### Fixed
+- **Toolbar touch targets** (MOB-002): All buttons now ≥ 44x44px for better mobile tap accuracy
+
+### Technical
+- Touch detection: `'ontouchstart' in window || navigator.maxTouchPoints > 0`
+- Bounds clamping accounts for node size (iW/iH) with 10px padding, 30px bottom padding for labels
+- Both mouse and touch drag handlers have bounds checking
+
+---
+
+## [v41] - 2026-02-23
+
+### Fixed
+- **Save modal approach** (v40 rollback): Reverted to modal with right-click save after v40's hidden iframe approach failed due to sandbox restrictions
+
+### Technical
+- v40 hidden iframe approach blocked by sandbox `allow-downloads` restriction
+- Modal with data URI image remains the only working save method in ChatGPT sandbox
+
+---
+
 ## [v38] - 2026-02-23
 
 ### Added

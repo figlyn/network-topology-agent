@@ -188,38 +188,35 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v41 DEPLOYED AND TESTED** ✅ - Modal approach working correctly.
+**v45 DEPLOYED TO PRODUCTION** - All mobile issues fixed.
 
-### v41 Test Results (2026-02-23)
+### v45 Fixes (2026-02-23)
 
-v41 reverts to the v37 modal approach for Save functionality:
-- Console shows: `v41: Modal shown for right-click save, filename: HQ and Branch Connectivity.svg`
-- Modal displays SVG image preview with filename label
-- User right-clicks image → "Save Image As" to download
+| Issue | Fix |
+|-------|-----|
+| MOB-004 | Drag handler scale bug - was using `1600*scale`, now uses fixed `1600` |
+| MOB-005 | Save modal PNG conversion - SVG converted to PNG for reliable mobile save |
 
-**Previous v40 test:** Hidden iframe download approach FAILED - sandbox blocks ALL download attempts.
+### v44 Features (2026-02-23)
 
-**Key insight:** ChatGPT caches widget HTML aggressively. Use "Refresh" button in connector settings OR delete and re-create connector to get fresh code.
+| Issue | Fix |
+|-------|-----|
+| MOB-002 | Toolbar buttons now ≥ 44x44px touch targets |
+| MOB-003 | Touch-friendly save modal ("Long-press" hint for touch devices) |
+| UX-004 | Nodes constrained within SVG viewBox (can't drag off-screen) |
 
-### Save/Export Feature Attempts (v32-v41)
+**Key insight:** ChatGPT caches widget HTML aggressively. **DELETE and RE-CREATE** connector to get fresh code (Refresh button alone may not work).
 
-| Version | Approach | Result |
-|---------|----------|--------|
-| v32 | Direct blob download | ❌ Blocked - sandbox lacks `allow-downloads` |
-| v33 | Append anchor to DOM | ❌ Blocked - same sandbox restriction |
-| v34 | Copy to clipboard | ❌ Blocked - Permissions Policy blocks clipboard |
-| v35 | Modal with right-click save | ✅ Works - user right-clicks "Save Image As" |
-| v36 | Clean modal, no text, X button | ✅ Works - cleaner UI |
-| v37 | Filename label from title | ✅ Works - shows suggested filename |
-| v38 | P1 features (undo/redo, keyboard shortcuts, touch, a11y) | ✅ Deployed |
-| v39 | Form POST with target="_blank" | ❌ Blocked - sandbox lacks `allow-popups` |
-| v40 | Hidden iframe form target | ❌ Blocked - sandbox blocks ALL download attempts |
-| **v41** | **Revert to v37 modal approach** | **✅ Works - modal with right-click save** |
+### Save/Export Feature (v45 Final Solution)
 
-### Key Learning (Save Feature):
-- **ChatGPT sandbox blocks**: Direct downloads (`allow-downloads`), clipboard write (`clipboard-write`)
-- **Workaround**: Modal with data URI image, user right-clicks to save
-- **Filename**: Derived from `topology.solutionTitle`, shown as selectable label
+- **SVG→PNG conversion**: More reliable for mobile long-press save
+- **Touch detection**: Shows "Long-press to save" on touch, "Right-click" on desktop
+- **Filename**: Derived from `topology.solutionTitle`
+
+### Key Learning (Mobile):
+- SVG data URIs don't work well with mobile long-press save gesture
+- PNG via canvas works reliably for mobile save
+- Drag handlers must use fixed viewBox dimensions (1600×900), not scaled values
 
 ### Previous Fix (v31): Connection Rendering
 The root cause was ChatGPT streaming JSON incrementally. Previous versions rendered too early before all connections arrived.
@@ -236,9 +233,9 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
-- **v41: (STAGING)** ✅ Modal approach for Save - tested and working
-- v40: ❌ Hidden iframe form target for downloads (BLOCKED - sandbox blocks ALL downloads)
-- v39: Form POST target="_blank" (BLOCKED - sandbox lacks `allow-popups`)
+- **v45: (PRODUCTION)** ✅ Mobile fixes - drag scale bug, PNG save for mobile
+- v44: ✅ Touch targets 44px, touch hints, drag bounds
+- v41: ✅ Modal approach for Save
 - v38: ✅ P1 features - Undo/Redo, Keyboard shortcuts, Touch drag, Accessibility
 - v37: ✅ Save modal with filename label from diagram title
 - v36: Clean modal (no text instructions), X close button, tooltip hint
