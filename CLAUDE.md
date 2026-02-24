@@ -240,7 +240,17 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v45 DEPLOYED TO PRODUCTION** - All mobile issues fixed.
+**v46 DEPLOYED TO STAGING** - iOS MCP compatibility fixes.
+
+### v46 Fixes (2026-02-23)
+
+| Issue | Fix |
+|-------|-----|
+| IOS-001 | Accept header injection - iOS sends incomplete Accept header |
+| IOS-002 | JSON response mode - SSE streaming issues on iOS |
+| IOS-003 | readOnlyHint annotation - THE KEY FIX for "write action disabled" error |
+
+**Key insight:** ChatGPT iOS blocks MCP tools by default as "write actions". Add `annotations: { readOnlyHint: true }` to mark tools as read-only.
 
 ### v45 Fixes (2026-02-23)
 
@@ -285,6 +295,7 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
+- **v46: (STAGING)** ✅ iOS MCP fixes - Accept header, JSON response, readOnlyHint
 - **v45: (PRODUCTION)** ✅ Mobile fixes - drag scale bug, PNG save for mobile
 - v44: ✅ Touch targets 44px, touch hints, drag bounds
 - v41: ✅ Modal approach for Save
@@ -362,6 +373,59 @@ window.addEventListener('message', (event) => {
 **Data sources:**
 - `window.openai.toolInput` = Arguments ChatGPT sends TO the tool (complete after tool-result)
 - `window.openai.toolOutput` = The `structuredContent` from the tool's response (backup)
+
+## Technical Notes - iOS MCP Compatibility
+
+**Key fixes for ChatGPT iOS app (2026-02-23):**
+
+ChatGPT on iOS has different behavior than the web version. Three fixes were required:
+
+### 1. Accept Header Injection (lines 1343-1357)
+
+**Problem:** ChatGPT iOS sends `Accept: application/json` only, but MCP SDK requires both `application/json` AND `text/event-stream`. Without both, SDK returns HTTP 406.
+
+**Fix:** Inject the missing header before passing request to SDK:
+```typescript
+const acceptHeader = request.headers.get("accept") || "";
+if (!acceptHeader.includes("text/event-stream")) {
+  const fixedHeaders = new Headers(request.headers);
+  fixedHeaders.set("accept", "application/json, text/event-stream");
+  // ... create new request with fixed headers
+}
+```
+
+### 2. JSON Response Mode (lines 1361-1363)
+
+**Problem:** SSE (Server-Sent Events) streaming may cause issues on iOS.
+
+**Fix:** Enable plain JSON response mode:
+```typescript
+const transport = new WebStandardStreamableHTTPServerTransport({
+  enableJsonResponse: true,
+});
+```
+
+### 3. readOnlyHint Annotation (lines 1204-1206) - THE KEY FIX
+
+**Problem:** ChatGPT was blocking our tool with "MCP write action is temporarily disabled" error. Tools default to being considered "write" actions.
+
+**Fix:** Mark tool as read-only with annotation:
+```typescript
+annotations: {
+  readOnlyHint: true,  // Marks tool as read-only, not a "write action"
+},
+```
+
+**This was THE critical fix that made MCP work on iOS.**
+
+### Key Learning (iOS)
+
+- ChatGPT iOS treats MCP tools as "write actions" by default (blocked)
+- Must explicitly mark read-only tools with `readOnlyHint: true`
+- Accept header differences between iOS and web require server-side fix
+- JSON response mode is more reliable than SSE on mobile
+
+---
 
 ## Architecture Overview
 

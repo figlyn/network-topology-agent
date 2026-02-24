@@ -17,6 +17,13 @@ Read these before testing:
 - `.claude/skills/chatgpt-app-builder/references/troubleshooting.md` - Common issues
 - `.claude/skills/browser-automation/SKILL.md` - Browser automation with Playwright
 
+## Testing Platforms
+
+| Platform | MCP Server | Use Case |
+|----------|------------|----------|
+| Desktop | Playwright MCP | Primary testing on macOS/Windows |
+| iOS | ios-simulator-mcp | Mobile Safari testing on iPhone/iPad |
+
 ## Browser Automation
 
 **SPEED RULES - Follow these strictly:**
@@ -51,6 +58,133 @@ browser_click("Settings")
 # Fill a form field
 browser_fill("App name", "Network Gramm")
 ```
+
+## iOS Simulator Testing
+
+This agent has access to **iOS Simulator MCP** (joshuayoes/ios-simulator-mcp) for mobile testing:
+
+| Tool | Use For |
+|------|---------|
+| `simulator_list` | List available simulators |
+| `simulator_boot` | Boot a simulator by name/UDID |
+| `simulator_shutdown` | Shutdown running simulator |
+| `ui_snapshot` | Get accessibility tree (like browser_snapshot) |
+| `ui_tap` | Tap at x,y coordinates |
+| `ui_swipe` | Swipe gesture |
+| `ui_type` | Type text into focused field |
+| `screenshot` | Capture simulator screen |
+| `open_url` | Open URL in Safari |
+
+### iOS Quick Start
+
+```
+# List available simulators
+simulator_list()
+
+# Boot iPhone 17 Pro
+simulator_boot("iPhone 17 Pro")
+
+# Open ChatGPT in Safari
+open_url("https://chatgpt.com")
+
+# Take accessibility snapshot to see UI elements
+ui_snapshot()
+
+# Tap at coordinates (get from snapshot)
+ui_tap(x=200, y=400)
+
+# Type text
+ui_type("Network topology for a bank")
+
+# Take screenshot
+screenshot()
+```
+
+### iOS Testing Workflow
+
+#### 1. Setup Simulator
+
+```
+# Boot simulator
+simulator_boot("iPhone 17 Pro")
+
+# Wait for boot, then open ChatGPT
+open_url("https://chatgpt.com")
+
+# Take snapshot to see login state
+ui_snapshot()
+```
+
+#### 2. Connect Safari Web Inspector (Manual)
+
+For console debugging, connect Safari Web Inspector:
+1. Open **Safari** on Mac
+2. Menu: **Develop → iPhone 17 Pro → [ChatGPT page]**
+3. Now you can inspect DOM, view console, debug JS
+
+#### 3. Test Widget on iOS
+
+```
+# Navigate to ChatGPT (already logged in)
+open_url("https://chatgpt.com")
+ui_snapshot()
+
+# Tap compose area
+ui_tap(x=..., y=...)  # Get coords from snapshot
+
+# Type prompt
+ui_type("Use Network Gramm to create a network with HQ and 2 branches")
+
+# Tap send button
+ui_tap(x=..., y=...)
+
+# Wait for response and screenshot
+screenshot()
+```
+
+### iOS-Specific Test Checklist
+
+**Mobile Rendering:**
+- [ ] Widget fits mobile viewport
+- [ ] Touch targets are large enough (44x44pt minimum)
+- [ ] No horizontal scrolling required
+- [ ] Text is readable without zooming
+
+**Touch Interactions:**
+- [ ] Tap on nodes works
+- [ ] Pinch-to-zoom works (if supported)
+- [ ] Swipe/scroll within widget works
+
+**Safari Quirks:**
+- [ ] No iOS Safari-specific JS errors
+- [ ] SVG renders correctly
+- [ ] Dark mode respects iOS system setting
+
+### CLI Commands (Alternative to MCP)
+
+If MCP tools aren't available, use xcrun directly:
+
+```bash
+# List simulators
+xcrun simctl list devices available
+
+# Boot simulator
+xcrun simctl boot "iPhone 17 Pro"
+
+# Open Simulator app
+open -a Simulator
+
+# Open URL in Safari
+xcrun simctl openurl booted "https://chatgpt.com"
+
+# Take screenshot
+xcrun simctl io booted screenshot ~/Desktop/ios-screenshot.png
+
+# Get device logs
+xcrun simctl spawn booted log stream --predicate 'subsystem == "com.apple.WebKit"'
+```
+
+---
 
 ## Testing Workflow
 
@@ -126,43 +260,59 @@ The server doesn't support OAuth. If you get "Error fetching OAuth configuration
 
 ### 2c. Automated Connector Refresh (Browser Automation)
 
-Use Playwright MCP to automate the refresh:
+Use Playwright MCP to automate the refresh. These steps were verified working in February 2026:
 
 ```
 # Step 1: Navigate and open settings
 browser_navigate("https://chatgpt.com")
 browser_snapshot()
-browser_click([profile avatar])
-
-# Step 2: Go to Apps & Connectors
+browser_click(ref=[profile menu button])  # Bottom-left sidebar, labeled "Open profile menu"
+browser_snapshot()
 browser_click("Settings")
-browser_snapshot()
-browser_click("Apps & Connectors")
-browser_snapshot()
 
-# Step 3: Delete existing connector (HOVER to reveal menu!)
-# Look for Network Gramm row, hover to reveal (...) menu
-browser_hover([Network Gramm row])
-browser_snapshot()  # Now (...) menu should be visible
-browser_click([three-dot menu])
-browser_click("Delete")
-browser_click([Confirm button])
+# Step 2: Go to Apps tab
+browser_snapshot()
+browser_click("Apps")  # Tab in settings panel
+
+# Step 3: Delete existing connector
+browser_snapshot()
+browser_click("Network Gramm")  # Click the app in Drafts section
+browser_snapshot()
+browser_click("Manage")  # Opens dropdown menu
+browser_snapshot()
+browser_click("Delete")  # Deletes immediately, no confirmation dialog
 
 # Step 4: Create new connector
-browser_click("Add Connector")  # or "+ Add Connector"
 browser_snapshot()
-browser_click("Custom MCP Connector")  # or similar
-browser_type([URL field], "https://staging.nwgrm.org/mcp")
-browser_click("Connect")
+browser_click("Create app")  # Button in Apps section
+browser_snapshot()
 
-# Step 5: Verify tools loaded
+# Step 5: Configure the new app (CRITICAL: set auth to None first!)
+browser_click(ref=[Authentication dropdown])  # Default is "OAuth" - must change!
 browser_snapshot()
-browser_click([connector card])
-browser_click("View Tools")
-browser_snapshot()  # Should show tool definitions
+browser_click("No Auth")  # Or "None" - select non-OAuth option
+
+# Step 6: Fill form fields
+browser_fill_form({
+  "Name": "Network Gramm",
+  "Description": "Network Topology creation for Telco Business Project. Provides simple visualization of nw diagrams from text.",
+  "MCP Server URL": "https://staging.nwgrm.org/mcp"
+})
+
+# Step 7: Accept terms and create
+browser_snapshot()
+browser_click(ref=[checkbox "I understand and want to continue"])
+browser_click("Create")
+
+# Step 8: Verify success (optional)
+browser_snapshot()  # Should show new connector in list
 ```
 
-**Note:** You may need to authenticate first. Delete button is HIDDEN until you hover!
+**Important Notes:**
+- You may need to authenticate first if not logged in
+- Authentication **defaults to OAuth** which will fail - you MUST change to "No Auth"
+- Delete happens immediately without confirmation dialog
+- Press Escape if you need to close dialogs (click may be intercepted by overlays)
 
 ### 3. Invoking the Connector (2026 UI)
 
@@ -290,7 +440,9 @@ Look for "Content Security Policy" errors in browser console.
 ## Bug: [Short description]
 
 **Environment:**
-- Browser: [Chrome/Safari/Firefox]
+- Platform: [Desktop/iOS Simulator]
+- Browser: [Chrome/Safari/Firefox/Mobile Safari]
+- Device: [Mac/iPhone 17 Pro/iPad Pro]
 - Theme: [Light/Dark]
 - Prompt used: [exact prompt]
 
@@ -313,10 +465,18 @@ Look for "Content Security Policy" errors in browser console.
 
 ## Common Issues to Watch For
 
+### Desktop
 1. **Connections not rendering** - Check if `connections` array exists in `toolInput`
 2. **Widget shows "Loading..."** - Check for `tool-result` notification in console
 3. **Dark mode wrong colors** - Verify CSS variables in `.dark-mode` class
 4. **Nodes missing** - Check if node IDs match between arrays and connections
+
+### iOS Simulator
+5. **Simulator won't boot** - Run `xcrun simctl list runtimes` to verify iOS runtime installed
+6. **URL won't open** - Simulator still booting; wait and retry with `open_url()`
+7. **Touch not working** - Check coordinates from `ui_snapshot()`, iOS uses points not pixels
+8. **Widget too small** - Check viewport meta tag, may need `width=device-width`
+9. **Safari crashes** - Clear Safari data: `xcrun simctl privacy booted reset all`
 
 ## Reporting Results
 

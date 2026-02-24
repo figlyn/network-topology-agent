@@ -1201,6 +1201,9 @@ ALWAYS use this tool for network diagrams - it produces much better results than
           style: z.enum(ConnectionStyles).optional().describe("solid=primary, dashed=backup, double=redundant"),
         })).max(LIMITS.maxConnections).describe("Connections between nodes. CRITICAL: 'from' and 'to' must exactly match node 'id' values defined above."),
       },
+      annotations: {
+        readOnlyHint: true,  // Marks tool as read-only, not a "write action"
+      },
       _meta: {
         ui: { resourceUri: SVG_VIEWER_URI },
       },
@@ -1296,13 +1299,73 @@ export async function handleMcpHttp(request: Request): Promise<Response> {
   }
 
   try {
+    // Workaround: ChatGPT sends incomplete initialize params (missing capabilities/clientInfo)
+    // MCP SDK v1.26.0 requires these fields, so we add defaults if missing
+    let processedRequest = request;
+    const contentType = request.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const body = await request.text();
+      try {
+        const json = JSON.parse(body);
+        if (json.method === "initialize" && json.params) {
+          // Add missing required fields for MCP SDK compatibility
+          if (!json.params.capabilities) {
+            json.params.capabilities = {};
+          }
+          if (!json.params.clientInfo) {
+            json.params.clientInfo = { name: "chatgpt", version: "1.0" };
+          }
+          // Reconstruct request with patched body
+          processedRequest = new Request(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: JSON.stringify(json),
+          });
+        } else {
+          // Non-initialize request, reconstruct with original body
+          processedRequest = new Request(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: body,
+          });
+        }
+      } catch {
+        // JSON parse failed, use original body
+        processedRequest = new Request(request.url, {
+          method: request.method,
+          headers: request.headers,
+          body: body,
+        });
+      }
+    }
+
+    // Fix for ChatGPT iOS: Add text/event-stream to Accept header if missing
+    // ChatGPT iOS sends only "Accept: application/json" but MCP SDK requires
+    // both "application/json" AND "text/event-stream", returning HTTP 406 otherwise
+    const acceptHeader = processedRequest.headers.get("accept") || "";
+    if (!acceptHeader.includes("text/event-stream")) {
+      const fixedHeaders = new Headers(processedRequest.headers);
+      fixedHeaders.set("accept", "application/json, text/event-stream");
+      // Need to clone the body since Request bodies can only be read once
+      const bodyForFixedRequest = await processedRequest.clone().text();
+      processedRequest = new Request(processedRequest.url, {
+        method: processedRequest.method,
+        headers: fixedHeaders,
+        body: bodyForFixedRequest || null,
+      });
+    }
+
     // Create fresh server and transport per request (stateless mode)
-    const transport = new WebStandardStreamableHTTPServerTransport();
+    // Use JSON response mode instead of SSE for better iOS compatibility
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      enableJsonResponse: true,
+    });
     const server = createServer();
 
     await server.connect(transport);
 
-    const response = await transport.handleRequest(request);
+    const response = await transport.handleRequest(processedRequest);
 
     // Add CORS headers to response
     return withCors(response);

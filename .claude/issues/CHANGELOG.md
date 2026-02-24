@@ -25,6 +25,25 @@ _Issues verified but not yet deployed_
 
 ---
 
+## [v46] - 2026-02-23
+
+### Fixed
+- **iOS MCP compatibility** (IOS-001): Fixed "MCP write action is temporarily disabled" error on ChatGPT iOS app
+- **Accept header injection**: ChatGPT iOS sends incomplete Accept header, now injected server-side
+- **JSON response mode**: Enabled for better iOS compatibility vs SSE streaming
+
+### Technical
+- Added `readOnlyHint: true` annotation to mark tool as read-only (THE KEY FIX)
+- Inject `text/event-stream` into Accept header when missing (iOS only sends `application/json`)
+- `enableJsonResponse: true` in transport options for plain JSON instead of SSE
+
+### Key Learning
+- ChatGPT iOS treats MCP tools as "write actions" by default (blocked)
+- Must explicitly mark read-only tools with `annotations: { readOnlyHint: true }`
+- Accept header differences between iOS and web require server-side fix
+
+---
+
 ## [v45] - 2026-02-23
 
 ### Fixed
