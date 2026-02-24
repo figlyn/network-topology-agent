@@ -25,7 +25,10 @@ _Issues verified but not yet deployed_
 
 ---
 
-## [v46] - 2026-02-23
+## [v46] - 2026-02-24
+
+### Added
+- **Save modal visual guidance** (UX-007): Prominent instruction with icon (🖱️ for desktop, 👆 for touch), styled status bar, subtle pulse animation
 
 ### Fixed
 - **iOS MCP compatibility** (IOS-001): Fixed "MCP write action is temporarily disabled" error on ChatGPT iOS app

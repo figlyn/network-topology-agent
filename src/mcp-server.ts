@@ -816,6 +816,11 @@ const SVG_VIEWER_HTML = `
       var modal = document.createElement('div');
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
 
+      // UX-007: Add keyframe animation for subtle pulse effect
+      var styleEl = document.createElement('style');
+      styleEl.textContent = '@keyframes saveHintPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.85;transform:scale(1.02)}}';
+      modal.appendChild(styleEl);
+
       var img = document.createElement('img');
       img.src = dataUri;
       img.alt = filename;
@@ -831,13 +836,29 @@ const SVG_VIEWER_HTML = `
       filenameLabel.textContent = filename;
       filenameLabel.title = 'Suggested filename';
 
-      // MOB-003: Visual hint text for save instructions
-      var hintText = document.createElement('div');
-      hintText.style.cssText = 'margin-top:8px;font-size:14px;color:rgba(255,255,255,0.8);text-align:center;font-weight:500';
+      // UX-007: Enhanced visual hint with icon, larger text, and subtle animation
+      var hintContainer = document.createElement('div');
+      hintContainer.style.cssText = 'margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 20px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);border-radius:8px;animation:saveHintPulse 2s ease-in-out 3';
+      hintContainer.setAttribute('role', 'status');
+      hintContainer.setAttribute('aria-live', 'polite');
+
+      // UX-007: Icon element - mouse pointer for desktop, finger for touch
+      var iconSpan = document.createElement('span');
+      iconSpan.style.cssText = 'font-size:24px;line-height:1';
+      iconSpan.setAttribute('aria-hidden', 'true');
+      iconSpan.textContent = isTouchDevice ? '👆' : '🖱️';
+
+      // UX-007: Prominent instruction text
+      var hintText = document.createElement('span');
+      hintText.style.cssText = 'font-size:16px;font-weight:600;color:#fff;letter-spacing:0.3px';
       hintText.textContent = isTouchDevice ? 'Long-press image to save' : 'Right-click image to save';
+
+      hintContainer.appendChild(iconSpan);
+      hintContainer.appendChild(hintText);
 
       var closeBtn = document.createElement('button');
       closeBtn.textContent = '✕';
+      closeBtn.setAttribute('aria-label', 'Close save dialog');
       closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:44px;height:44px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:20px;color:#fff;cursor:pointer';
       closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
       closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
@@ -845,14 +866,14 @@ const SVG_VIEWER_HTML = `
 
       modal.appendChild(img);
       modal.appendChild(filenameLabel);
-      modal.appendChild(hintText);
+      modal.appendChild(hintContainer);
       modal.appendChild(closeBtn);
       modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
       document.body.appendChild(modal);
 
       // MOB-003: Device-appropriate screen reader announcement
       announceStatus((isTouchDevice ? 'Long-press' : 'Right-click') + ' image to save as ' + filename);
-      console.log('v45: Modal shown, touch=' + isTouchDevice + ', filename:', filename);
+      console.log('v46: Modal shown, touch=' + isTouchDevice + ', filename:', filename);
     }
 
     // Data loading - try many possible locations
@@ -1128,7 +1149,8 @@ const SVG_VIEWER_HTML = `
 // v44: UX-004 - Nodes constrained within SVG viewBox (can't be dragged off-screen)
 // v45: MOB-004 - Fix drag handler using wrong scaled dimensions (was 1600*scale, now 1600)
 //      MOB-005 - Convert SVG to PNG for reliable mobile long-press save
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v45-1740571200.html";
+// v46: UX-007 - Save modal visual guidance: icon, prominent text, subtle pulse animation
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v46-1771969039.html";
 
 // Create MCP server instance
 function createServer(): McpServer {

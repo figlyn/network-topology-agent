@@ -2,6 +2,7 @@
   "name": "network-topology-agent",
   "compatibility_date": "2026-02-18",
   "main": "src/worker.ts",
+  "routes": [{ "pattern": "nwgrm.org/*", "zone_name": "nwgrm.org" }],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"

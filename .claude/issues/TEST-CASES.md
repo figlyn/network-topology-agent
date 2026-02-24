@@ -831,6 +831,169 @@ Each button announces its purpose:
 
 ---
 
+## UX-007: Save Modal Visual Guidance
+
+### TC-UX007-01: Save Instruction Visually Prominent (Desktop)
+
+**Preconditions:**
+- Widget loaded on desktop browser
+- Diagram rendered
+
+**Steps:**
+1. Click Save button to open modal
+2. Observe the save instruction text
+
+**Expected Result:**
+- Instruction "Right-click image to save" is visually prominent
+- Text has visual emphasis (e.g., different color, icon, animation, or larger size)
+- Instruction is not easily missed
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX007-02: Save Instruction Visually Prominent (Touch)
+
+**Preconditions:**
+- Widget loaded on touch device (or touch emulation)
+- Diagram rendered
+
+**Steps:**
+1. Tap Save button to open modal
+2. Observe the save instruction text
+
+**Expected Result:**
+- Instruction "Long-press image to save" is visually prominent
+- Text has visual emphasis (e.g., different color, icon, animation, or larger size)
+- Instruction is not easily missed
+
+**Test Type:** Manual
+**Agent:** Mobile Tester
+
+---
+
+### TC-UX007-03: Visual Emphasis in Light Mode
+
+**Preconditions:**
+- System set to light mode
+- Widget loaded
+
+**Steps:**
+1. Click Save button
+2. Observe instruction styling
+
+**Expected Result:**
+- Visual emphasis is clearly visible against light background
+- Good contrast for readability
+- Any animation/icon visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX007-04: Visual Emphasis in Dark Mode
+
+**Preconditions:**
+- System set to dark mode
+- Widget loaded
+
+**Steps:**
+1. Click Save button
+2. Observe instruction styling
+
+**Expected Result:**
+- Visual emphasis is clearly visible against dark background
+- Good contrast for readability
+- Any animation/icon visible
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX007-05: Animation Not Distracting
+
+**Preconditions:**
+- Widget loaded
+- Save modal open
+
+**Steps:**
+1. Open save modal
+2. Observe any animations for 10 seconds
+3. Attempt to focus on the image
+
+**Expected Result:**
+- Any animation is subtle and non-distracting
+- Animation does not cause motion sickness or eye strain
+- User can focus on the image without distraction
+- Animation may stop after initial attention is drawn
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX007-06: Instruction Includes Visual Icon
+
+**Preconditions:**
+- Widget loaded
+
+**Steps:**
+1. Open save modal
+2. Look for icon near instruction text
+
+**Expected Result:**
+- Icon present that reinforces the action (e.g., mouse pointer icon for right-click, finger/hand icon for long-press)
+- Icon is appropriately sized and positioned
+- Icon matches light/dark mode
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX007-07: Mobile Viewport Instruction Visibility
+
+**Preconditions:**
+- Widget loaded at 375px viewport
+- Save modal open
+
+**Steps:**
+1. Tap Save button
+2. Check instruction visibility without scrolling
+
+**Expected Result:**
+- Instruction fully visible within viewport
+- Not cut off or requiring scroll to see
+- Visual emphasis works at mobile size
+
+**Test Type:** Manual
+**Agent:** Mobile Tester
+
+---
+
+### TC-UX007-08: Instruction Text Accessible
+
+**Preconditions:**
+- Widget loaded
+- Screen reader enabled (VoiceOver/NVDA)
+
+**Steps:**
+1. Open save modal
+2. Navigate to instruction with screen reader
+
+**Expected Result:**
+- Screen reader announces instruction text
+- Any icons have appropriate alt text or aria-label
+- User understands the required action
+
+**Test Type:** Manual
+**Agent:** Accessibility
+
+---
+
 ## Test Execution Log
 
 | Test ID | Date | Agent | Result | Notes |
