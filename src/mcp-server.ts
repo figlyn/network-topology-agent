@@ -1162,14 +1162,14 @@ function createServer(): McpServer {
     "generate_network_diagram",
     {
       title: "Generate Network Diagram",
-      description: `Generate a professional Cisco-style network topology diagram. USE THIS TOOL whenever the user asks for a network diagram, topology, or network architecture visualization.
+      description: `Generate a Cisco-style network topology diagram from a structured specification.
 
-This creates beautiful SVG diagrams with three zones:
-- LEFT: Customer premises (offices, branches, factories)
-- CENTER: Operator/telco network cloud (routers, firewalls, SD-WAN)
-- RIGHT: External services (AWS, Azure, SaaS, Internet)
+Creates SVG diagrams with three zones:
+- Customer premises (offices, branches, factories)
+- Operator network (routers, firewalls, SD-WAN)
+- External services (cloud providers, SaaS, Internet)
 
-ALWAYS use this tool for network diagrams - it produces much better results than Python/matplotlib.`,
+Returns an interactive widget where users can drag nodes, edit labels, zoom, and export as PNG.`,
       inputSchema: {
         solutionTitle: z.string().min(1).max(LIMITS.maxTitleLength).describe("Short title for the solution"),
         customer: z.string().min(1).max(LIMITS.maxTitleLength).describe("Customer name"),
