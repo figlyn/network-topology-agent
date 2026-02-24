@@ -9,6 +9,7 @@ interface Fetcher {
 interface Env {
   ASSETS: Fetcher;
   ANTHROPIC_API_KEY?: string;
+  OPENAI_CHALLENGE_TOKEN?: string;
 }
 
 export default {
@@ -18,6 +19,46 @@ export default {
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
       return corsResponse();
+    }
+
+    // OpenAI App Store challenge endpoint
+    if (url.pathname === "/.well-known/openai-apps-challenge") {
+      const token = env.OPENAI_CHALLENGE_TOKEN || "PLACEHOLDER_TOKEN_SET_VIA_ENV";
+      return new Response(token, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain",
+          "Cache-Control": "no-cache",
+        },
+      });
+    }
+
+    // Health check endpoint
+    if (url.pathname === "/health") {
+      return jsonResponse({
+        status: "ok",
+        version: "1.0.0",
+      });
+    }
+
+    // Privacy policy page
+    if (url.pathname === "/privacy") {
+      return new Response(PRIVACY_POLICY_HTML, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      });
+    }
+
+    // Terms of service page
+    if (url.pathname === "/terms") {
+      return new Response(TERMS_OF_SERVICE_HTML, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      });
     }
 
     // MCP endpoint for ChatGPT Apps
@@ -162,3 +203,139 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+// Privacy Policy HTML
+const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Network Gramm</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1 { color: #1a1a1a; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
+    h2 { color: #1a1a1a; margin-top: 30px; }
+    .last-updated { color: #666; font-style: italic; margin-bottom: 30px; }
+    a { color: #0066cc; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="last-updated">Last updated: February 2026</p>
+
+  <h2>Overview</h2>
+  <p>Network Gramm ("we", "our", or "the Service") is a network topology diagram generation tool. We are committed to protecting your privacy and being transparent about our data practices.</p>
+
+  <h2>Information We Process</h2>
+  <p>When you use Network Gramm through ChatGPT:</p>
+  <ul>
+    <li><strong>Diagram Data:</strong> The network topology descriptions you provide are processed to generate diagrams. This data is processed in real-time and is not stored on our servers.</li>
+    <li><strong>Technical Data:</strong> Standard web server logs may include IP addresses, browser type, and request timestamps for security and operational purposes.</li>
+  </ul>
+
+  <h2>What We Do NOT Collect</h2>
+  <ul>
+    <li>Personal identification information</li>
+    <li>User accounts or credentials</li>
+    <li>Cookies or tracking identifiers</li>
+    <li>Your generated diagrams (they are rendered on-demand and not stored)</li>
+  </ul>
+
+  <h2>Data Processing</h2>
+  <p>All diagram generation occurs in real-time. When you request a network diagram:</p>
+  <ol>
+    <li>Your topology description is sent to our service</li>
+    <li>We generate an SVG diagram based on your input</li>
+    <li>The diagram is returned to ChatGPT for display</li>
+    <li>No data is retained after the request is complete</li>
+  </ol>
+
+  <h2>Third-Party Services</h2>
+  <p>Network Gramm operates as a ChatGPT App. Your use of ChatGPT is governed by <a href="https://openai.com/policies/privacy-policy" target="_blank">OpenAI's Privacy Policy</a>.</p>
+
+  <h2>Data Security</h2>
+  <p>We use industry-standard security measures including HTTPS encryption for all communications. Our service is hosted on Cloudflare Workers infrastructure.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>We may update this privacy policy from time to time. Significant changes will be reflected in the "Last updated" date.</p>
+
+  <h2>Contact Us</h2>
+  <p>If you have questions about this privacy policy, please contact us at: <a href="mailto:info@nwgrm.org">info@nwgrm.org</a></p>
+</body>
+</html>`;
+
+// Terms of Service HTML
+const TERMS_OF_SERVICE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service - Network Gramm</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1 { color: #1a1a1a; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
+    h2 { color: #1a1a1a; margin-top: 30px; }
+    .last-updated { color: #666; font-style: italic; margin-bottom: 30px; }
+    a { color: #0066cc; }
+  </style>
+</head>
+<body>
+  <h1>Terms of Service</h1>
+  <p class="last-updated">Last updated: February 2026</p>
+
+  <h2>1. Acceptance of Terms</h2>
+  <p>By using Network Gramm ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+
+  <h2>2. Description of Service</h2>
+  <p>Network Gramm is an AI-powered tool that generates network topology diagrams. The Service is provided as a ChatGPT App and creates visual representations of network architectures based on text descriptions.</p>
+
+  <h2>3. Use of Service</h2>
+  <p>You agree to use the Service only for lawful purposes. You may not:</p>
+  <ul>
+    <li>Use the Service to generate content that infringes on intellectual property rights</li>
+    <li>Attempt to disrupt or overload the Service</li>
+    <li>Use automated systems to access the Service in a manner that exceeds reasonable use</li>
+    <li>Reverse engineer or attempt to extract the source code of the Service</li>
+  </ul>
+
+  <h2>4. Generated Content</h2>
+  <p>Diagrams generated by Network Gramm are provided for informational and planning purposes. You retain ownership of the concepts you describe, and may use the generated diagrams for personal or commercial purposes.</p>
+
+  <h2>5. Disclaimer of Warranties</h2>
+  <p>The Service is provided "as is" without warranties of any kind, either express or implied. We do not guarantee that:</p>
+  <ul>
+    <li>The Service will be uninterrupted or error-free</li>
+    <li>Generated diagrams will be accurate or suitable for any particular purpose</li>
+    <li>The Service will meet your specific requirements</li>
+  </ul>
+
+  <h2>6. Limitation of Liability</h2>
+  <p>To the maximum extent permitted by law, Network Gramm and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Service.</p>
+
+  <h2>7. Third-Party Services</h2>
+  <p>Network Gramm operates as a ChatGPT App. Your use of ChatGPT is subject to <a href="https://openai.com/policies/terms-of-use" target="_blank">OpenAI's Terms of Use</a>.</p>
+
+  <h2>8. Modifications</h2>
+  <p>We reserve the right to modify or discontinue the Service at any time without notice. We may also update these Terms of Service, with changes taking effect upon posting.</p>
+
+  <h2>9. Governing Law</h2>
+  <p>These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles.</p>
+
+  <h2>10. Contact</h2>
+  <p>For questions about these Terms of Service, please contact: <a href="mailto:info@nwgrm.org">info@nwgrm.org</a></p>
+</body>
+</html>`;
