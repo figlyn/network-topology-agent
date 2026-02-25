@@ -25,6 +25,37 @@ _Issues verified but not yet deployed_
 
 ---
 
+## [v54] - 2026-02-25
+
+### Added
+- **Clean loading UX** (UX-008): Shows status messages during streaming instead of partial diagram
+- **Loading stages**: 🔄 Connecting → ⚡ Generating (with node count) → 🎨 Drawing → Complete
+- **Time-based testing** (TESTER.md): Added performance measurement methodology
+
+### Fixed
+- **Connection rendering** (CONN-001): Use `toolOutput.topology` (complete) not `toolInput` (streamed/incomplete)
+- **67% failure rate** (v50-v51): Extended polling timeout from 2.25s to 25s for ChatGPT streaming
+- **Missing connections**: Prioritize server response over streamed input
+
+### Changed
+- Simplified `tryGetData()` to prioritize `toolOutput` (complete data with connections)
+- Removed partial diagram rendering - show loading state until complete
+- Extended polling: 70 attempts over 25 seconds (fast→medium→slow intervals)
+
+### Technical
+- `toolInput` = ChatGPT's streamed arguments (may be incomplete)
+- `toolOutput` = Server's `structuredContent` response (always complete)
+- `hasToolOutput` flag tracks when complete data is available
+- `showLoading(stage, data)` displays progress during streaming
+- Re-render triggered by `tool-result` notification or `openai:set_globals` event
+
+### Key Learning
+- ChatGPT streaming can take 5-10+ seconds for complex topologies
+- Don't render partial data - better UX to show loading messages
+- `toolOutput` is the authoritative source for complete topology data
+
+---
+
 ## [v46] - 2026-02-24
 
 ### Added

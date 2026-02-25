@@ -240,7 +240,32 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v46 DEPLOYED TO STAGING** - iOS MCP compatibility fixes.
+**v54 DEPLOYED TO STAGING** - Clean loading UX, render only when complete.
+
+### v54 Fixes (2026-02-25)
+
+| Issue | Fix |
+|-------|-----|
+| UX-008 | Show loading messages during streaming instead of partial diagram |
+| UX-009 | Three loading stages: "Connecting..." → "Generating topology..." → "Drawing diagram..." |
+| UX-010 | Only render SVG when `toolOutput` (complete data) is available |
+
+**Loading stages:**
+1. 🔄 "Connecting to server..."
+2. ⚡ "Generating topology... Found X nodes"
+3. 🎨 "Drawing diagram..."
+4. ✅ Full diagram with all connections
+
+**Key insight:** Better UX to show clear loading state than incomplete diagram (nodes without connections).
+
+### Test Results (v54)
+
+| Check | Result |
+|-------|--------|
+| Loading messages visible | ✅ "Generating topology... Found 7 nodes" |
+| No partial diagrams | ✅ Clean loading state |
+| Final diagram complete | ✅ All nodes + connections |
+| Widget interactive | ✅ Edit/Zoom/Save work |
 
 ### v46 Fixes (2026-02-23)
 
@@ -295,8 +320,13 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
-- **v46: (STAGING)** ✅ iOS MCP fixes - Accept header, JSON response, readOnlyHint
-- **v45: (PRODUCTION)** ✅ Mobile fixes - drag scale bug, PNG save for mobile
+- **v54: (STAGING)** ✅ Clean loading UX - messages during streaming, render only when complete
+- **v53:** ✅ Use toolOutput (connections visible)
+- **v52:** ✅ Extended polling 25s
+- **v51:** ❌ 67% failure
+- **v50:** ❌ 67% failure
+- **v46:** ✅ iOS MCP fixes
+- **v45: (PRODUCTION)** ✅ Mobile fixes
 - v44: ✅ Touch targets 44px, touch hints, drag bounds
 - v41: ✅ Modal approach for Save
 - v38: ✅ P1 features - Undo/Redo, Keyboard shortcuts, Touch drag, Accessibility

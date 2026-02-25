@@ -478,9 +478,88 @@ Look for "Content Security Policy" errors in browser console.
 8. **Widget too small** - Check viewport meta tag, may need `width=device-width`
 9. **Safari crashes** - Clear Safari data: `xcrun simctl privacy booted reset all`
 
+## Time-Based Performance Testing
+
+### Why Measure Time?
+
+Connection rendering speed directly impacts user experience. Target metrics:
+
+| Metric | Target | Acceptable | Poor |
+|--------|--------|------------|------|
+| Request to first render | <2s | 2-4s | >4s |
+| Request to full connections | <3s | 3-5s | >5s |
+| Widget interactivity | <4s | 4-6s | >6s |
+
+### How to Measure
+
+**Method 1: Browser Performance Timing**
+
+Open browser console BEFORE sending prompt, paste:
+```javascript
+window._perfStart = Date.now();
+const observer = new MutationObserver((mutations) => {
+  const svg = document.querySelector('[data-testid="widget-container"] svg');
+  if (svg) {
+    const conns = svg.querySelectorAll('path[d*="C"]').length;
+    console.log(`[${Date.now() - window._perfStart}ms] SVG found, connections: ${conns}`);
+  }
+});
+observer.observe(document.body, { childList: true, subtree: true });
+console.log('Timer started. Send your prompt now.');
+```
+
+**Method 2: Manual Stopwatch**
+
+1. Start stopwatch when clicking Send
+2. Note time when "Loading diagram..." appears (first render)
+3. Note time when nodes appear
+4. Note time when connection lines appear (full render)
+5. Note time when Edit button becomes clickable (interactivity)
+
+### Performance Test Checklist
+
+- [ ] Record 3 separate test runs
+- [ ] Calculate average times
+- [ ] Note any outliers
+- [ ] Check browser console for errors affecting performance
+- [ ] Report results in this format:
+
+```
+## Performance Test Results - v[XX]
+Date: YYYY-MM-DD
+Environment: [Desktop Chrome / Safari iOS / etc]
+
+| Run | First Render | Connections | Interactive |
+|-----|--------------|-------------|-------------|
+| 1   | Xms          | Xms         | Xms         |
+| 2   | Xms          | Xms         | Xms         |
+| 3   | Xms          | Xms         | Xms         |
+| AVG | Xms          | Xms         | Xms         |
+
+Console errors: [None / List errors]
+Notes: [Any observations]
+```
+
+### Fast Testing Without Connector Recreation
+
+**When you CAN skip connector recreation:**
+- Widget HTML changes only (version suffix in URI handles cache)
+- Server logic changes that don't affect tool schema
+
+**When you MUST recreate connector:**
+- Tool name changes
+- Input schema changes
+- OAuth/auth configuration changes
+
+**Quick refresh (no recreation needed):**
+1. Check CLAUDE.md for current widget version (e.g., v50)
+2. If version changed since last test, connector refresh icon MAY work
+3. Test with a simple prompt first to verify new code is active
+
 ## Reporting Results
 
 After testing, update `WIDGET_ISSUES.md` with:
 - Issues found with severity (P0-P3)
 - Steps to reproduce
 - Suggested fix if known
+- Performance metrics if doing time-based testing
