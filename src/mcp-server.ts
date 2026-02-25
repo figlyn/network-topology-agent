@@ -1091,7 +1091,9 @@ const SVG_VIEWER_HTML = `
 // v53: Use toolOutput (complete server response) NOT toolInput (streamed, incomplete)
 // v54: Show loading messages during streaming, render only when complete
 // v55: Cisco-style SVG loading icons (replace emojis with professional icons)
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v55.html";
+// v56: Much larger font sizes
+// v57: HUGE fonts - title 72px, nodes 56px, params 38px, zones 36px, connections 36px
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v57.html";
 
 // Create MCP server instance
 function createServer(): McpServer {

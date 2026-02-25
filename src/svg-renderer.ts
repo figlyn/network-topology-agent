@@ -142,13 +142,13 @@ export function renderTopologySVG(data: TopologyData): string {
 <rect width="${w}" height="${h}" fill="${T.bg}" opacity="0.95"/>
 
 <!-- Title -->
-<text x="${w / 2}" y="42" text-anchor="middle" fill="${T.text}" font-size="32" font-weight="700" font-family="Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif">${escapeXml(data.solutionTitle)}</text>
-<text x="${w / 2}" y="70" text-anchor="middle" fill="${T.tm}" font-size="18" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace">${escapeXml(data.customer)} · ${escapeXml(data.industry)}</text>
+<text x="${w / 2}" y="58" text-anchor="middle" fill="${T.text}" font-size="72" font-weight="700" font-family="Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif">${escapeXml(data.solutionTitle)}</text>
+<text x="${w / 2}" y="105" text-anchor="middle" fill="${T.ts}" font-size="40" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace">${escapeXml(data.customer)} · ${escapeXml(data.industry)}</text>
 
 <!-- Zone labels -->
-<text x="${custColX + custColW / 2}" y="${pad.t - 22}" text-anchor="middle" fill="${T.tf}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2.5" font-weight="600">CUSTOMER PREMISES</text>
-<text x="${opCX}" y="${pad.t - 22}" text-anchor="middle" fill="${T.opLabel}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2.5" font-weight="600">OPERATOR NETWORK</text>
-<text x="${extColX + extColW / 2}" y="${pad.t - 22}" text-anchor="middle" fill="${T.tf}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2.5" font-weight="600">EXTERNAL SERVICES</text>
+<text x="${custColX + custColW / 2}" y="${pad.t - 18}" text-anchor="middle" fill="${T.ts}" font-size="36" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="3" font-weight="700">CUSTOMER PREMISES</text>
+<text x="${opCX}" y="${pad.t - 18}" text-anchor="middle" fill="${T.opLabel}" font-size="36" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="3" font-weight="700">OPERATOR NETWORK</text>
+<text x="${extColX + extColW / 2}" y="${pad.t - 18}" text-anchor="middle" fill="${T.ts}" font-size="36" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="3" font-weight="700">EXTERNAL SERVICES</text>
 
 <!-- Operator cloud -->
 <path d="${cloudPath(opCX, opCY, opW + 100, opCloudH)}" fill="${T.opFill}" stroke="${T.opStroke}" stroke-width="3" stroke-dasharray="12,7"/>
@@ -175,9 +175,9 @@ export function renderTopologySVG(data: TopologyData): string {
       svg += `<circle cx="${opRight}" cy="${(r.sy + r.ey) / 2}" r="5" fill="${cc}" opacity="0.4" stroke="${T.opStroke}" stroke-width="2"/>\n`;
     }
     if (conn.label) {
-      const lw = conn.label.length * 9 + 20;
-      svg += `<rect x="${r.mx - lw / 2}" y="${r.my - 12}" width="${lw}" height="24" rx="12" fill="${T.clbg}" stroke="${T.bdr}" stroke-width="0.5" opacity="0.93"/>\n`;
-      svg += `<text x="${r.mx}" y="${r.my + 5}" text-anchor="middle" fill="${T.cl}" font-size="14" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" font-weight="500">${escapeXml(conn.label)}</text>\n`;
+      const lw = conn.label.length * 22 + 40;
+      svg += `<rect x="${r.mx - lw / 2}" y="${r.my - 24}" width="${lw}" height="48" rx="24" fill="${T.clbg}" stroke="${T.bdr}" stroke-width="1" opacity="0.95"/>\n`;
+      svg += `<text x="${r.mx}" y="${r.my + 12}" text-anchor="middle" fill="${T.text}" font-size="36" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" font-weight="600">${escapeXml(conn.label)}</text>\n`;
     }
   }
 
@@ -193,17 +193,17 @@ export function renderTopologySVG(data: TopologyData): string {
 
     svg += `<g>
   <svg x="${p.cx - iW / 2}" y="${p.cy - iH / 2}" width="${iW}" height="${iH}" viewBox="0 0 48 36" style="color:${col};overflow:visible">${iconSvg.replace(/currentColor/g, col)}</svg>
-  <text x="${p.cx}" y="${ly}" text-anchor="middle" fill="${isOp ? T.opLabel : T.text}" font-size="18" font-weight="600" font-family="Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif">${escapeXml(nd.label)}${nd.count && nd.count > 1 ? ` (×${nd.count})` : ""}</text>
+  <text x="${p.cx}" y="${ly}" text-anchor="middle" fill="${isOp ? T.opLabel : T.text}" font-size="56" font-weight="700" font-family="Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif">${escapeXml(nd.label)}${nd.count && nd.count > 1 ? ` (×${nd.count})` : ""}</text>
 `;
     for (let i = 0; i < params.length; i++) {
-      svg += `  <text x="${p.cx}" y="${ly + 20 + i * 18}" text-anchor="middle" fill="${T.ts}" font-size="15" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" opacity="0.7">${escapeXml(params[i])}</text>\n`;
+      svg += `  <text x="${p.cx}" y="${ly + 48 + i * 42}" text-anchor="middle" fill="${T.ts}" font-size="38" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace">${escapeXml(params[i])}</text>\n`;
     }
     svg += `</g>\n`;
   }
 
   // Footer labels
-  svg += `<text x="${opLeft}" y="${h - pad.b + 30}" text-anchor="middle" fill="${T.opLabel}" font-size="13" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2" opacity="0.5">▸ INGRESS</text>
-<text x="${opRight}" y="${h - pad.b + 30}" text-anchor="middle" fill="${T.opLabel}" font-size="13" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="2" opacity="0.5">EGRESS ▸</text>
+  svg += `<text x="${opLeft}" y="${h - pad.b + 35}" text-anchor="middle" fill="${T.opLabel}" font-size="28" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="3" font-weight="600">▸ INGRESS</text>
+<text x="${opRight}" y="${h - pad.b + 35}" text-anchor="middle" fill="${T.opLabel}" font-size="28" font-family="Söhne Mono, ui-monospace, Menlo, Monaco, monospace" letter-spacing="3" font-weight="600">EGRESS ▸</text>
 </svg>`;
 
   return svg;
