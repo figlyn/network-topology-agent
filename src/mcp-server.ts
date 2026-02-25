@@ -892,7 +892,18 @@ const SVG_VIEWER_HTML = `
     }
 
     // v54: Show clear loading state with status messages
+    // v55: Cisco-style SVG loading icons (replace emojis)
     var loadingStage = 'init';  // init, streaming, rendering
+
+    // Cisco-style SVG loading icons
+    var LOADING_ICONS = {
+      // Two nodes with bidirectional arrows - representing client-server connection
+      init: '<svg viewBox="0 0 48 36" width="48" height="36"><circle cx="10" cy="18" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="18" r="2" fill="currentColor" opacity="0.35"/><circle cx="38" cy="18" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="38" cy="18" r="2" fill="currentColor" opacity="0.35"/><line x1="17" y1="18" x2="31" y2="18" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3,2"/><polyline points="28,15 31,18 28,21" fill="none" stroke="currentColor" stroke-width="1.5"/><polyline points="20,15 17,18 20,21" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+      // Central hub with 4 satellite nodes - representing topology being built
+      streaming: '<svg viewBox="0 0 48 36" width="48" height="36"><circle cx="24" cy="18" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="18" r="1.5" fill="currentColor" opacity="0.35"/><circle cx="10" cy="10" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.7"/><circle cx="38" cy="10" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.7"/><circle cx="10" cy="26" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.7"/><circle cx="38" cy="26" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.7"/><line x1="19" y1="14" x2="13" y2="10" stroke="currentColor" stroke-width="1.2" opacity="0.5"/><line x1="29" y1="14" x2="35" y2="10" stroke="currentColor" stroke-width="1.2" opacity="0.5"/><line x1="19" y1="22" x2="13" y2="26" stroke="currentColor" stroke-width="1.2" opacity="0.5"/><line x1="29" y1="22" x2="35" y2="26" stroke="currentColor" stroke-width="1.2" opacity="0.5"/></svg>',
+      // Document with pen drawing lines
+      rendering: '<svg viewBox="0 0 48 36" width="48" height="36"><rect x="8" y="4" width="24" height="28" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="10" x2="24" y2="10" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="12" y1="16" x2="28" y2="16" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="12" y1="22" x2="20" y2="22" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="36" y1="8" x2="26" y2="26" stroke="currentColor" stroke-width="2"/><polyline points="26,26 24,28 28,30" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="38" cy="6" r="3" fill="currentColor" opacity="0.25"/></svg>'
+    };
 
     function showLoading(stage, data) {
       loadingStage = stage;
@@ -903,24 +914,24 @@ const SVG_VIEWER_HTML = `
       const totalNodes = custNodes + opNodes + extNodes;
 
       const stages = {
-        init: { icon: '🔄', text: 'Connecting to server...', sub: '' },
+        init: { text: 'Connecting to server...', sub: '' },
         streaming: {
-          icon: '⚡',
           text: 'Generating topology...',
           sub: totalNodes > 0 ? 'Found ' + totalNodes + ' nodes' : 'Analyzing requirements'
         },
-        rendering: { icon: '🎨', text: 'Drawing diagram...', sub: 'Almost ready' }
+        rendering: { text: 'Drawing diagram...', sub: 'Almost ready' }
       };
 
       const s = stages[stage] || stages.init;
+      const iconSvg = LOADING_ICONS[stage] || LOADING_ICONS.init;
       const dots = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
 
       canvas.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:32px">' +
         '<style>' +
         '.dots span{animation:blink 1.4s infinite;opacity:0}.dots span:nth-child(2){animation-delay:0.2s}.dots span:nth-child(3){animation-delay:0.4s}@keyframes blink{0%,100%{opacity:0}50%{opacity:1}}' +
-        '.loading-icon{font-size:48px;margin-bottom:16px;animation:pulse 2s ease-in-out infinite}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}' +
+        '.loading-icon{width:48px;height:36px;margin-bottom:16px;color:' + T.tm + ';animation:pulse 2s ease-in-out infinite}@keyframes pulse{0%,100%{transform:scale(1);opacity:0.8}50%{transform:scale(1.1);opacity:1}}' +
         '</style>' +
-        '<div class="loading-icon">' + s.icon + '</div>' +
+        '<div class="loading-icon">' + iconSvg + '</div>' +
         '<div style="font-size:18px;font-weight:600;color:' + T.text + '">' + s.text + dots + '</div>' +
         (title !== 'Network Topology' ? '<div style="margin-top:8px;font-size:14px;color:' + T.ts + '">' + title + '</div>' : '') +
         (s.sub ? '<div style="margin-top:12px;font-size:12px;color:' + T.tm + '">' + s.sub + '</div>' : '') +
@@ -1079,7 +1090,8 @@ const SVG_VIEWER_HTML = `
 // v46: UX-007 - Save modal visual guidance: icon, prominent text, subtle pulse animation
 // v53: Use toolOutput (complete server response) NOT toolInput (streamed, incomplete)
 // v54: Show loading messages during streaming, render only when complete
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v54.html";
+// v55: Cisco-style SVG loading icons (replace emojis with professional icons)
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v55.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
