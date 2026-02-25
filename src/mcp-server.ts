@@ -70,18 +70,26 @@ const SVG_VIEWER_HTML = `
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
     body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); }
     .container { width: 100%; padding: 8px; }
-    .toolbar { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+    /* v61: Professional toolbar styling matching Cisco diagram aesthetic */
+    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; padding: 6px; background: var(--color-bg-soft); border-radius: 8px; border: 1px solid var(--color-border); }
     .toolbar button {
-      padding: 8px 14px; border-radius: 6px; border: 1px solid var(--color-border);
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 16px; border-radius: 6px; border: 1.5px solid var(--color-border);
       background: var(--color-bg); color: var(--color-text-secondary); font-size: 13px; cursor: pointer;
-      font-family: var(--font-mono); transition: all 0.2s;
-      min-height: 44px; min-width: 44px; /* MOB-002: Touch target size */
+      font-family: var(--font-mono); font-weight: 500; transition: all 0.15s ease;
+      min-height: 44px; min-width: 44px;
     }
-    .toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-border-hover); }
-    .toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); }
-    .toolbar .zoom-group { display: flex; gap: 2px; align-items: center; }
-    .toolbar .zoom-group button { padding: 8px 12px; font-size: 16px; font-weight: bold; min-width: 44px; }
-    .toolbar .hint { font-size: 11px; color: var(--color-text-muted); margin-left: auto; }
+    .toolbar button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-accent); color: var(--color-text); box-shadow: 0 2px 8px var(--color-shadow); }
+    .toolbar button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
+    .toolbar button.active svg { stroke: var(--color-accent); }
+    .toolbar .zoom-group { display: flex; gap: 0; align-items: center; background: var(--color-bg); border: 1.5px solid var(--color-border); border-radius: 6px; padding: 2px; }
+    .toolbar .zoom-group button { padding: 8px 12px; border: none; border-radius: 4px; min-width: 40px; background: transparent; }
+    .toolbar .zoom-group button:hover { background: var(--color-bg-soft); border-color: transparent; box-shadow: none; }
+    .toolbar .zoom-group span { min-width: 52px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+    .toolbar .hint { font-size: 12px; color: var(--color-text-muted); margin-left: auto; opacity: 0.8; }
+    @media (max-width: 500px) { .toolbar .hint { display: none; } }
     .canvas { width: 100%; overflow: auto; border-radius: 8px; background: var(--color-bg-soft); border: 1px solid var(--color-border); position: relative; }
     .canvas svg { display: block; cursor: default; }
     .canvas.edit-mode svg { cursor: grab; }
@@ -98,13 +106,23 @@ const SVG_VIEWER_HTML = `
 <body>
   <div class="container">
     <div class="toolbar">
-      <button id="editBtn" onclick="window.toggleEdit()" aria-label="Edit diagram layout" aria-pressed="false"><span aria-hidden="true">✎</span> Edit</button>
+      <button id="editBtn" onclick="window.toggleEdit()" aria-label="Edit diagram layout" aria-pressed="false" title="Edit mode: drag nodes, double-click to rename">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span>Edit</span>
+      </button>
       <div class="zoom-group" role="group" aria-label="Zoom controls">
-        <button onclick="window.zoomOut()" aria-label="Zoom out">−</button>
-        <span id="zoomLevel" style="min-width:45px;text-align:center;font-size:12px;color:var(--color-text-secondary)">100%</span>
-        <button onclick="window.zoomIn()" aria-label="Zoom in">+</button>
+        <button onclick="window.zoomOut()" aria-label="Zoom out" title="Zoom out">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <span id="zoomLevel">100%</span>
+        <button onclick="window.zoomIn()" aria-label="Zoom in" title="Zoom in">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
       </div>
-      <button id="saveBtn" onclick="window.exportSVG()" aria-label="Save diagram as image"><span aria-hidden="true">💾</span> Save</button>
+      <button id="saveBtn" onclick="window.exportSVG()" aria-label="Save diagram as image" title="Save or share diagram">
+        <svg id="saveBtnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span id="saveBtnText">Save</span>
+      </button>
       <span class="hint" id="hint"></span>
     </div>
     <div id="canvas" class="canvas"></div>
@@ -195,16 +213,24 @@ const SVG_VIEWER_HTML = `
     var hasShareAPI = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
     var showShareButton = isTouchDevice && hasShareAPI;
 
-    // Update save button text based on device type
+    // v61: Update save button with SVG icon based on device type
     function updateSaveButton() {
+      var saveBtnIcon = document.getElementById('saveBtnIcon');
+      var saveBtnText = document.getElementById('saveBtnText');
       var saveBtn = document.getElementById('saveBtn');
-      if (saveBtn) {
+      if (saveBtnIcon && saveBtnText && saveBtn) {
         if (showShareButton) {
-          saveBtn.innerHTML = '<span aria-hidden="true">📤</span> Share';
+          // Share icon (upload arrow with nodes)
+          saveBtnIcon.innerHTML = '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>';
+          saveBtnText.textContent = 'Share';
           saveBtn.setAttribute('aria-label', 'Share diagram');
+          saveBtn.setAttribute('title', 'Share diagram via native share sheet');
         } else {
-          saveBtn.innerHTML = '<span aria-hidden="true">💾</span> Save';
+          // Save icon (floppy disk)
+          saveBtnIcon.innerHTML = '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>';
+          saveBtnText.textContent = 'Save';
           saveBtn.setAttribute('aria-label', 'Save diagram as image');
+          saveBtn.setAttribute('title', 'Save diagram as PNG image');
         }
       }
     }
@@ -350,7 +376,8 @@ const SVG_VIEWER_HTML = `
       var allNodes = (topology.customerNodes||[]).concat(topology.operatorNodes||[]).concat(topology.externalNodes||[]);
 
       // Font sizes scaled - v60: increased to match server proportions (was 25-31% of server, now 68-70%)
-      var fs = { title: 50 * s, subtitle: 28 * s, zone: 20 * s, label: 38 * s, param: 26 * s, conn: 20 * s, footer: 16 * s };
+      // v61: slightly reduced fonts (~20% smaller than v60)
+      var fs = { title: 42 * s, subtitle: 24 * s, zone: 18 * s, label: 32 * s, param: 22 * s, conn: 18 * s, footer: 14 * s };
 
       var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
       var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
@@ -410,10 +437,10 @@ const SVG_VIEWER_HTML = `
 
         if (conn.label) {
           const mx = (sx+ex)/2, my = (sy+ey)/2;
-          // v60: scaled label box for larger conn font (20*s vs 10*s)
-          const lw = conn.label.length * 14 * s + 32 * s;
-          connSvg += \`<rect x="\${mx-lw/2}" y="\${my-20*s}" width="\${lw}" height="\${40*s}" rx="\${20*s}" fill="\${T.clbg}" stroke="\${T.bdr}" stroke-width="\${0.5*s}" opacity="0.93"/>\`;
-          connSvg += \`<text x="\${mx}" y="\${my+8*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
+          // v61: adjusted label box for conn font 18*s
+          const lw = conn.label.length * 12 * s + 28 * s;
+          connSvg += \`<rect x="\${mx-lw/2}" y="\${my-18*s}" width="\${lw}" height="\${36*s}" rx="\${18*s}" fill="\${T.clbg}" stroke="\${T.bdr}" stroke-width="\${0.5*s}" opacity="0.93"/>\`;
+          connSvg += \`<text x="\${mx}" y="\${my+6*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
         }
         return connSvg;
       }
@@ -432,8 +459,8 @@ const SVG_VIEWER_HTML = `
         const icon = ICONS[nd.type]||ICONS.cloud;
         const params = (nd.params||[]).slice(0,3);
         const isOp = (zones[nd.id]||'').startsWith('op_');
-        // v60: increased label offset for larger 38*s label font
-        const ly = p.cy + iH/2 + 28*s;
+        // v61: adjusted label offset for 32*s label font
+        const ly = p.cy + iH/2 + 24*s;
 
         svg += \`<g data-node="\${nd.id}" style="cursor:\${editMode?'grab':'default'}">\`;
         if (editMode) svg += \`<rect x="\${p.cx-iW/2-6*s}" y="\${p.cy-iH/2-6*s}" width="\${iW+12*s}" height="\${iH+12*s}" rx="\${5*s}" fill="transparent" stroke="\${T.selStroke}" stroke-width="\${1.5*s}" opacity="0.3"/>\`;
@@ -441,7 +468,7 @@ const SVG_VIEWER_HTML = `
         svg += \`<text x="\${p.cx}" y="\${ly}" text-anchor="middle" fill="\${isOp?T.opLabel:T.text}" font-size="\${fs.label}" font-weight="600" data-label="\${nd.id}" style="cursor:pointer">\${nd.label}\${nd.count>1?' (×'+nd.count+')':''}</text>\`;
         // v60: increased line spacing for larger fonts (label 38*s, param 26*s)
         params.forEach((pr, i) => {
-          svg += \`<text x="\${p.cx}" y="\${ly+32*s+i*28*s}" text-anchor="middle" fill="\${T.ts}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.7" data-param="\${nd.id}-\${i}" style="cursor:pointer">\${pr}</text>\`;
+          svg += \`<text x="\${p.cx}" y="\${ly+26*s+i*24*s}" text-anchor="middle" fill="\${T.ts}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.7" data-param="\${nd.id}-\${i}" style="cursor:pointer">\${pr}</text>\`;
         });
         svg += \`</g>\`;
       });
@@ -1179,7 +1206,8 @@ const SVG_VIEWER_HTML = `
 // v58: (reverted) BUG-001 render dedup caused layout collapse
 // v59: PERF-001 throttled drag, BUG-002 fix icon jumping (no render dedup)
 // v60: Web Share API - native share sheet on mobile, fallback to modal
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v60.html";
+// v61: Professional SVG toolbar icons, refined button styling, focus states
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v61.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
