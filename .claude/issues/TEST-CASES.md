@@ -1002,6 +1002,505 @@ Each button announces its purpose:
 
 ---
 
+## BUG-001: Diagram Renders Twice
+
+### TC-BUG001-01: Single Render on Initial Load
+
+**Preconditions:**
+- Fresh ChatGPT conversation with connector attached
+- DevTools Console open with "Preserve log" enabled
+
+**Steps:**
+1. Send a prompt asking for a network topology diagram
+2. Observe the canvas element during loading
+3. Count how many times the SVG diagram appears/flashes
+
+**Expected Result:**
+- Diagram renders exactly once after loading completes
+- No visible flashing or duplicate diagram display
+- Console shows single "renderSVG complete" message (when DEBUG=true)
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG001-02: Single Render After tool-result Event
+
+**Preconditions:**
+- Widget loaded in ChatGPT
+- DevTools Console open
+
+**Steps:**
+1. Add console log to track render calls: `window.renderCount = 0;` and patch renderSVG
+2. Generate a topology diagram
+3. After diagram displays, check `window.renderCount`
+
+**Expected Result:**
+- renderCount should be 1-2 maximum (initial + tool-result)
+- No continuous re-rendering after diagram stabilizes
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-BUG001-03: No Duplicate Render on Theme Change
+
+**Preconditions:**
+- Widget loaded with complete diagram
+- System in light mode
+
+**Steps:**
+1. Note current diagram state
+2. Switch system to dark mode
+3. Observe diagram re-render
+
+**Expected Result:**
+- Diagram re-renders exactly once for theme change
+- No flicker or double appearance
+- Colors update smoothly
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG001-04: No Duplicate Render During Streaming
+
+**Preconditions:**
+- DevTools Console open
+- Network throttling enabled (Slow 3G)
+
+**Steps:**
+1. Generate a complex topology (many nodes)
+2. Observe loading states during streaming
+3. Watch for diagram appearing/disappearing
+
+**Expected Result:**
+- Loading messages shown during streaming
+- Diagram appears ONCE when complete
+- No partial diagram followed by complete diagram
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG001-05: Throttled Render Prevents Duplicate Display
+
+**Preconditions:**
+- Widget code with DEBUG=true
+- Console open
+
+**Steps:**
+1. Generate topology
+2. Rapidly trigger events that would cause re-render (e.g., theme toggle)
+3. Check console for render timing
+
+**Expected Result:**
+- Renders are throttled to max 1 per 100ms
+- pendingRender mechanism prevents duplicate renders
+- Console shows throttling working correctly
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+## PERF-001: Rendering Too Slow
+
+### TC-PERF001-01: Initial Render Time Measurement
+
+**Preconditions:**
+- Widget loaded
+- DevTools Performance panel open
+
+**Steps:**
+1. Clear performance recordings
+2. Generate a topology with 10 nodes and 8 connections
+3. Start performance recording before render
+4. Measure time from renderSVG() start to canvas.innerHTML assignment
+
+**Expected Result:**
+- Initial render completes in < 100ms for 10-node diagram
+- No visible delay after data arrives
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-PERF001-02: Drag Performance During Edit
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+- Performance panel recording
+
+**Steps:**
+1. Start performance recording
+2. Drag a node smoothly across the canvas for 2 seconds
+3. Stop recording
+4. Analyze frame rate
+
+**Expected Result:**
+- Frame rate stays above 30fps during drag
+- No visible lag or stutter
+- renderSVG() calls are throttled during drag
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-PERF001-03: Complex Topology Render Time
+
+**Preconditions:**
+- DevTools Console with timing
+
+**Steps:**
+1. Generate maximum complexity topology:
+   - 10 customer nodes
+   - 10 operator nodes
+   - 10 external nodes
+   - 30 connections
+2. Measure total render time
+
+**Expected Result:**
+- Complete render in < 500ms
+- Loading states visible during generation
+- Final diagram responsive immediately
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-PERF001-04: Zoom Operation Performance
+
+**Preconditions:**
+- Widget loaded with diagram
+
+**Steps:**
+1. Click zoom in button 5 times rapidly
+2. Observe responsiveness
+
+**Expected Result:**
+- Each zoom completes quickly
+- No cumulative lag
+- Zoom indicator updates smoothly
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-PERF001-05: Layout Computation Time
+
+**Preconditions:**
+- Console with timing hooks
+
+**Steps:**
+1. Add timing to computeLayout() function
+2. Render topology
+3. Measure layout computation duration
+
+**Expected Result:**
+- computeLayout() completes in < 10ms
+- No redundant layout calculations
+- Caching of layout results where appropriate
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-PERF001-06: Memory Usage During Extended Use
+
+**Preconditions:**
+- DevTools Memory panel
+- Widget loaded
+
+**Steps:**
+1. Take initial heap snapshot
+2. Perform 20 drag operations
+3. Perform 10 zoom operations
+4. Take second heap snapshot
+5. Compare memory usage
+
+**Expected Result:**
+- Memory growth < 5MB after operations
+- No significant memory leaks
+- undoStack properly limited to 50 entries
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-PERF001-07: Mobile Performance (375px viewport)
+
+**Preconditions:**
+- DevTools mobile emulation (iPhone 12, 375px)
+- CPU throttling 4x slowdown
+
+**Steps:**
+1. Load widget with medium topology (7 nodes)
+2. Measure render time
+3. Test drag responsiveness
+
+**Expected Result:**
+- Render time < 200ms on throttled CPU
+- Touch drag remains smooth
+- No janky animations
+
+**Test Type:** Manual
+**Agent:** Mobile Tester
+
+---
+
+## BUG-002: Icons Jumping During Edits
+
+### TC-BUG002-01: Node Position Stable on Edit Mode Toggle
+
+**Preconditions:**
+- Widget loaded with diagram
+- Note exact position of a node
+
+**Steps:**
+1. Click Edit button to enable edit mode
+2. Observe node positions
+3. Click Edit button to disable edit mode
+4. Observe node positions
+
+**Expected Result:**
+- Nodes remain in exact same position
+- No visual jump or shift
+- Only edit mode indicators change (selection rectangles)
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-02: Node Position Stable on Drag Start
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Position mouse over a node
+2. Press mouse button down (without moving)
+3. Observe node position
+
+**Expected Result:**
+- Node does not move on mousedown
+- Node stays in place until actual drag movement
+- No jump to different position
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-03: Node Position Stable on Drag End
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+- Node dragged to new position
+
+**Steps:**
+1. Drag a node to a new position
+2. Release mouse button
+3. Observe final node position
+
+**Expected Result:**
+- Node stays at the exact position where released
+- No snap-back or jump
+- Position persists after mouse release
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-04: Connected Nodes Stay Stable During Peer Drag
+
+**Preconditions:**
+- Widget with nodes connected by lines
+- Edit mode enabled
+
+**Steps:**
+1. Identify two connected nodes (A and B)
+2. Drag node A to new position
+3. Observe node B's position
+
+**Expected Result:**
+- Node B remains in its original position
+- Only the connection line between A and B updates
+- Node B does not jump or shift
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-05: Node Stable on Text Label Edit
+
+**Preconditions:**
+- Widget loaded with diagram
+
+**Steps:**
+1. Double-click on a node's label
+2. Observe node position while input appears
+3. Type new text
+4. Press Enter
+5. Observe node position after save
+
+**Expected Result:**
+- Node stays in place during entire edit process
+- Text input appears near label without moving node
+- After save, node remains in same position
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-06: Node Stable During Zoom Operations
+
+**Preconditions:**
+- Widget loaded with diagram
+- Note exact relative positions of nodes
+
+**Steps:**
+1. Click zoom in button
+2. Observe node positions relative to each other
+3. Click zoom out button
+4. Observe node positions
+
+**Expected Result:**
+- Nodes maintain their relative positions
+- No jumping between zoom levels
+- Layout scales uniformly
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-07: Touch Drag Position Accuracy
+
+**Preconditions:**
+- Touch device or touch emulation
+- Widget loaded, edit mode enabled
+
+**Steps:**
+1. Touch and hold a node
+2. Drag finger to new position
+3. Observe node follows finger precisely
+4. Release touch
+
+**Expected Result:**
+- Node center stays under finger during drag
+- No offset or jump when touch starts
+- Final position matches where finger released
+
+**Test Type:** Manual (Device)
+**Agent:** Mobile Tester
+
+---
+
+### TC-BUG002-08: Node Stable After Undo/Redo
+
+**Preconditions:**
+- Widget loaded with diagram
+- Edit mode enabled
+
+**Steps:**
+1. Note original position of node A
+2. Drag node A to new position
+3. Press Cmd+Z to undo
+4. Observe node position
+5. Press Cmd+Shift+Z to redo
+6. Observe node position
+
+**Expected Result:**
+- Undo returns node to exact original position
+- Redo returns node to exact dragged position
+- No intermediate jumps or flicker
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-09: Position Calculation with Scale Factor
+
+**Preconditions:**
+- Widget loaded at non-default zoom (e.g., 150%)
+- Edit mode enabled
+
+**Steps:**
+1. Drag a node at 150% zoom
+2. Note: mouse position should correctly translate to SVG coordinates
+
+**Expected Result:**
+- Node follows mouse cursor accurately at any zoom level
+- No scale-related offset in position
+- getScreenCTM() transformation works correctly
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-BUG002-10: Overrides Persist Correctly
+
+**Preconditions:**
+- Widget loaded, edit mode enabled
+- DevTools Console open
+
+**Steps:**
+1. Drag node "hq" to new position
+2. In console, check `overrides.hq`
+3. Toggle edit mode off and on
+4. Check `overrides.hq` again
+5. Re-render (e.g., change zoom)
+6. Check node position
+
+**Expected Result:**
+- overrides object stores dx, dy values
+- Overrides persist across edit mode toggles
+- Overrides correctly applied on re-render
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-BUG002-11: getPos() Returns Consistent Values
+
+**Preconditions:**
+- Console access to widget functions
+
+**Steps:**
+1. Call getPos() for a node multiple times
+2. Compare returned values
+
+**Expected Result:**
+- Same node returns identical position each call
+- No floating-point drift
+- Position consistent between renders
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
 ## Adding New Test Cases
 
 1. Create test case in appropriate issue section

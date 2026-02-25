@@ -25,6 +25,26 @@ _Issues verified but not yet deployed_
 
 ---
 
+## [v59] - 2026-02-25
+
+### Fixed
+- **Drag performance** (PERF-001): Changed drag handlers to use `throttledRender()` instead of `renderSVG()` for smoother 30fps+ drag operations
+- **Icon jumping** (BUG-002): Fixed `attachEventHandlers()` to use fixed viewBox dimensions (1600×900) instead of scaled values, matching drag handlers
+
+### Reverted
+- **Render deduplication** (BUG-001): v58's `JSON.stringify(topology)` approach caused icon collapse regression - needs different fix
+
+### Technical
+- `throttledRender()` debounces rapid renders to max once per 100ms
+- Consistent layout parameters across all functions (renderSVG, attachEventHandlers, drag handlers)
+- v58 regression: JSON.stringify on topology object interfered with initial render timing
+
+### Key Learning
+- Naive render deduplication via JSON.stringify can cause subtle timing bugs
+- Layout calculations must use consistent dimensions across all code paths
+
+---
+
 ## [v54] - 2026-02-25
 
 ### Added

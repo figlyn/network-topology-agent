@@ -240,32 +240,26 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v54 DEPLOYED TO STAGING** - Clean loading UX, render only when complete.
+**v59 DEPLOYED TO PRODUCTION** - Performance and stability fixes.
 
-### v54 Fixes (2026-02-25)
+### v59 Fixes (2026-02-25)
 
 | Issue | Fix |
 |-------|-----|
-| UX-008 | Show loading messages during streaming instead of partial diagram |
-| UX-009 | Three loading stages: "Connecting..." → "Generating topology..." → "Drawing diagram..." |
-| UX-010 | Only render SVG when `toolOutput` (complete data) is available |
+| PERF-001 | Throttled drag rendering - `throttledRender()` for smooth 30fps+ drag |
+| BUG-002 | Fixed icon jumping - consistent 1600×900 viewBox dimensions |
 
-**Loading stages:**
-1. 🔄 "Connecting to server..."
-2. ⚡ "Generating topology... Found X nodes"
-3. 🎨 "Drawing diagram..."
-4. ✅ Full diagram with all connections
+**v58 reverted:** Render deduplication via `JSON.stringify(topology)` caused icon collapse regression.
 
-**Key insight:** Better UX to show clear loading state than incomplete diagram (nodes without connections).
+**Key insight:** Layout calculations must use consistent dimensions across renderSVG, attachEventHandlers, and drag handlers.
 
-### Test Results (v54)
+### v54 Features (2026-02-25)
 
-| Check | Result |
-|-------|--------|
-| Loading messages visible | ✅ "Generating topology... Found 7 nodes" |
-| No partial diagrams | ✅ Clean loading state |
-| Final diagram complete | ✅ All nodes + connections |
-| Widget interactive | ✅ Edit/Zoom/Save work |
+| Feature | Description |
+|---------|-------------|
+| Clean loading UX | Show status messages during streaming instead of partial diagram |
+| Loading stages | "Connecting..." → "Generating topology..." → "Drawing diagram..." |
+| Complete rendering | Only render SVG when `toolOutput` (complete data) is available |
 
 ### v46 Fixes (2026-02-23)
 
@@ -320,13 +314,15 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
-- **v54: (STAGING)** ✅ Clean loading UX - messages during streaming, render only when complete
+- **v59: (PRODUCTION)** ✅ Throttled drag, fixed icon jumping (reverted v58 render dedup)
+- **v58:** ❌ Render deduplication caused icon collapse
+- **v54:** ✅ Clean loading UX - messages during streaming, render only when complete
 - **v53:** ✅ Use toolOutput (connections visible)
 - **v52:** ✅ Extended polling 25s
 - **v51:** ❌ 67% failure
 - **v50:** ❌ 67% failure
 - **v46:** ✅ iOS MCP fixes
-- **v45: (PRODUCTION)** ✅ Mobile fixes
+- **v45:** ✅ Mobile fixes
 - v44: ✅ Touch targets 44px, touch hints, drag bounds
 - v41: ✅ Modal approach for Save
 - v38: ✅ P1 features - Undo/Redo, Keyboard shortcuts, Touch drag, Accessibility

@@ -295,6 +295,7 @@ const SVG_VIEWER_HTML = `
     function renderSVG() {
       if (DEBUG) console.log('renderSVG called, topology:', !!topology, 'connectionsRendered:', connectionsRendered);
       if (!topology) return;
+
       try {
       // Remove any active input when re-rendering
       if (activeInput) { activeInput.remove(); activeInput = null; }
@@ -426,7 +427,9 @@ const SVG_VIEWER_HTML = `
 
     function attachEventHandlers() {
       if (!svgEl) return;
-      const w = 1600 * scale, h = 900 * scale;
+      // BUG-002: Use fixed viewBox dimensions, NOT scaled values
+      // This matches the drag handlers which also use fixed 1600x900
+      const w = 1600, h = 900;
       const layout = computeLayout(topology, w, h, scale);
 
       // Drag handlers (only in edit mode) - mouse and touch
@@ -586,7 +589,8 @@ const SVG_VIEWER_HTML = `
         dx: clampedCx - base.cx,
         dy: clampedCy - base.cy
       };
-      renderSVG();
+      // PERF-001: Use throttled render during drag to avoid excessive DOM updates
+      throttledRender();
     });
 
     document.addEventListener('mouseup', () => {
@@ -630,7 +634,8 @@ const SVG_VIEWER_HTML = `
         dx: clampedCx - base.cx,
         dy: clampedCy - base.cy
       };
-      renderSVG();
+      // PERF-001: Use throttled render during touch drag to avoid excessive DOM updates
+      throttledRender();
     }, { passive: false });
 
     document.addEventListener('touchend', function() {
@@ -1093,7 +1098,9 @@ const SVG_VIEWER_HTML = `
 // v55: Cisco-style SVG loading icons (replace emojis with professional icons)
 // v56: Much larger font sizes
 // v57: HUGE fonts - title 72px, nodes 56px, params 38px, zones 36px, connections 36px
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v57.html";
+// v58: (reverted) BUG-001 render dedup caused layout collapse
+// v59: PERF-001 throttled drag, BUG-002 fix icon jumping (no render dedup)
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v59.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
