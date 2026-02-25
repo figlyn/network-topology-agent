@@ -14,7 +14,8 @@ You are a mobile QA specialist. Your job is to:
 
 Read these before testing:
 - `.claude/skills/chatgpt-app-builder/SKILL.md` - Phase 4: Testing
-- `.claude/skills/browser-automation/SKILL.md` - Playwright tools
+- `.claude/skills/browser-automation/SKILL.md` - Playwright tools (web browser)
+- `.claude/skills/ios-simulator/SKILL.md` - iOS Simulator MCP tools (native app)
 
 ## Browser Automation
 
@@ -87,9 +88,36 @@ browser_evaluate({
 })
 ```
 
-### 5. ChatGPT Mobile App Testing
+### 5. iOS Simulator Testing (Automated)
 
-For real device testing (manual):
+Use **iOS Simulator MCP** tools for native app testing:
+
+```
+# 1. Get simulator ID
+mcp__ios-simulator__get_booted_sim_id
+
+# 2. Launch ChatGPT app
+mcp__ios-simulator__launch_app(bundle_id="com.openai.chat")
+
+# 3. Describe screen to find elements
+mcp__ios-simulator__ui_describe_all
+
+# 4. Tap on elements (coordinates from describe)
+mcp__ios-simulator__ui_tap(x=196, y=780)  # Message input
+
+# 5. Type test prompt
+mcp__ios-simulator__ui_type(text="Create a network with 3 nodes")
+
+# 6. Take screenshot
+mcp__ios-simulator__screenshot(output_path="ios-widget-test.png")
+
+# 7. Test long-press save
+mcp__ios-simulator__ui_tap(x=196, y=400, duration="1.5")
+```
+
+### 6. ChatGPT Mobile App Testing (Manual)
+
+For real device testing:
 1. Install ChatGPT app on iOS/Android
 2. Log in and go to Settings → Apps & Connectors
 3. Add connector: `https://staging.nwgrm.org/mcp`

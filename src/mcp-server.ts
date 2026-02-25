@@ -104,7 +104,7 @@ const SVG_VIEWER_HTML = `
         <span id="zoomLevel" style="min-width:45px;text-align:center;font-size:12px;color:var(--color-text-secondary)">100%</span>
         <button onclick="window.zoomIn()" aria-label="Zoom in">+</button>
       </div>
-      <button onclick="window.exportSVG()" aria-label="Save diagram as image"><span aria-hidden="true">💾</span> Save</button>
+      <button id="saveBtn" onclick="window.exportSVG()" aria-label="Save diagram as image"><span aria-hidden="true">💾</span> Save</button>
       <span class="hint" id="hint"></span>
     </div>
     <div id="canvas" class="canvas"></div>
@@ -178,6 +178,43 @@ const SVG_VIEWER_HTML = `
     // MOB-001: Touch detection
     var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
+    // v60: Web Share API support - native share sheet on mobile
+    // Sanitize filename from solution title
+    function sanitizeFilename(title) {
+      return (title || '')
+        .replace(/[<>:"/\\\\|?*]/g, '')     // Remove invalid chars
+        .replace(/\\s+/g, '-')               // Spaces to hyphens
+        .replace(/-+/g, '-')                 // Collapse multiple hyphens
+        .replace(/^-|-$/g, '')               // Trim hyphens
+        .substring(0, 100)                   // Limit length
+        .toLowerCase() || 'network-topology'; // Fallback
+    }
+
+    // v60: On touch devices, always show Share and try navigator.share() directly
+    // Don't pre-check canShare() as it may be blocked in ChatGPT sandbox
+    var hasShareAPI = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    var showShareButton = isTouchDevice && hasShareAPI;
+
+    // Update save button text based on device type
+    function updateSaveButton() {
+      var saveBtn = document.getElementById('saveBtn');
+      if (saveBtn) {
+        if (showShareButton) {
+          saveBtn.innerHTML = '<span aria-hidden="true">📤</span> Share';
+          saveBtn.setAttribute('aria-label', 'Share diagram');
+        } else {
+          saveBtn.innerHTML = '<span aria-hidden="true">💾</span> Save';
+          saveBtn.setAttribute('aria-label', 'Save diagram as image');
+        }
+      }
+    }
+    // Update button when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateSaveButton);
+    } else {
+      setTimeout(updateSaveButton, 0);
+    }
+
     // Theme colors - updated dynamically based on dark/light mode
     var TLight = {
       bg:'#FFFFFF',text:'#0F172A',ts:'#475569',tm:'#94A3B8',tf:'#CBD5E1',
@@ -240,14 +277,15 @@ const SVG_VIEWER_HTML = `
     };
 
     function computeLayout(data, w, h, s) {
-      // Scale-aware sizes
-      const iW = 70 * s, iH = 53 * s, nodeH = 130 * s;
-      const pad = {t: 100 * s, b: 60 * s};
-      const custColX = 50 * s, custColW = 180 * s;
-      const opLeft = custColX + custColW + 100 * s;
-      const opRight = w - 280 * s;
+      // v60 Phase 2-3: larger icons and zones to match server proportions
+      const iW = 90 * s, iH = 68 * s, nodeH = 160 * s;
+      // v60: increased padding for larger elements
+      const pad = {t: 140 * s, b: 80 * s};
+      const custColX = 60 * s, custColW = 220 * s;
+      const opLeft = custColX + custColW + 120 * s;
+      const opRight = w - 340 * s;
       const opW = opRight - opLeft;
-      const extColX = opRight + 100 * s, extColW = 180 * s;
+      const extColX = opRight + 120 * s, extColW = 220 * s;
       const opInX = opLeft + opW * 0.12;
       const opCoreX = opLeft + opW * 0.48;
       const opEgX = opLeft + opW * 0.84;
@@ -311,8 +349,8 @@ const SVG_VIEWER_HTML = `
       var opCloudH = h - pad.t - pad.b + 30 * s;
       var allNodes = (topology.customerNodes||[]).concat(topology.operatorNodes||[]).concat(topology.externalNodes||[]);
 
-      // Font sizes scaled
-      var fs = { title: 22 * s, subtitle: 13 * s, zone: 10 * s, label: 14 * s, param: 11 * s, conn: 10 * s, footer: 9 * s };
+      // Font sizes scaled - v60: increased to match server proportions (was 25-31% of server, now 68-70%)
+      var fs = { title: 50 * s, subtitle: 28 * s, zone: 20 * s, label: 38 * s, param: 26 * s, conn: 20 * s, footer: 16 * s };
 
       var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
       var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
@@ -322,19 +360,20 @@ const SVG_VIEWER_HTML = `
       svg += '<title>' + diagramTitle + '</title>';
 
       // Background with theme-aware colors
-      const gridSize = 20 * s;
+      // v60: larger grid for larger elements
+      const gridSize = 28 * s;
       svg += \`<defs><pattern id="grid" width="\${gridSize}" height="\${gridSize}" patternUnits="userSpaceOnUse"><circle cx="\${gridSize/2}" cy="\${gridSize/2}" r="\${0.5*s}" fill="\${T.tf}" opacity="0.3"/></pattern></defs>\`;
       svg += \`<rect width="\${w}" height="\${h}" fill="\${T.bg}"/>\`;
       svg += \`<rect width="\${w}" height="\${h}" fill="url(#grid)" opacity="0.5"/>\`;
 
-      // Title
-      svg += \`<text x="\${w/2}" y="\${35*s}" text-anchor="middle" fill="\${T.text}" font-size="\${fs.title}" font-weight="700" data-field="solutionTitle" style="cursor:pointer">\${topology.solutionTitle}</text>\`;
-      svg += \`<text x="\${w/2}" y="\${55*s}" text-anchor="middle" fill="\${T.tm}" font-size="\${fs.subtitle}" font-family="' + fontMono + '">\${topology.customer} · \${topology.industry}</text>\`;
+      // Title - v60: adjusted positioning for larger fonts (title 50*s, subtitle 28*s)
+      svg += \`<text x="\${w/2}" y="\${50*s}" text-anchor="middle" fill="\${T.text}" font-size="\${fs.title}" font-weight="700" data-field="solutionTitle" style="cursor:pointer">\${topology.solutionTitle}</text>\`;
+      svg += \`<text x="\${w/2}" y="\${85*s}" text-anchor="middle" fill="\${T.tm}" font-size="\${fs.subtitle}" font-family="' + fontMono + '">\${topology.customer} · \${topology.industry}</text>\`;
 
-      // Zone labels
-      svg += \`<text x="\${custColX+custColW/2}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>\`;
-      svg += \`<text x="\${opCX}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>\`;
-      svg += \`<text x="\${extColX+extColW/2}" y="\${pad.t-18*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>\`;
+      // Zone labels - v60: adjusted for larger zone font (20*s)
+      svg += \`<text x="\${custColX+custColW/2}" y="\${pad.t-25*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>\`;
+      svg += \`<text x="\${opCX}" y="\${pad.t-25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>\`;
+      svg += \`<text x="\${extColX+extColW/2}" y="\${pad.t-25*s}" text-anchor="middle" fill="\${T.tf}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>\`;
 
       // Operator cloud
       svg += \`<path d="\${cloudPath(opCX, opCY, opW+80*s, opCloudH)}" fill="\${T.opFill}" stroke="\${T.opStroke}" stroke-width="\${2.5*s}" stroke-dasharray="\${10*s},\${6*s}"/>\`;
@@ -361,18 +400,20 @@ const SVG_VIEWER_HTML = `
 
         const fn = allNodes.find(n=>n.id===conn.from);
         const cc = TC[fn?.type]||T.tm;
-        const dash = conn.style==='dashed'?\`\${6*s},\${5*s}\`:'none';
-        const sw = conn.style==='double'? 3*s : 1.8*s;
+        // v60: connection strokes match server proportions
+        const dash = conn.style==='dashed'?\`\${8*s},\${6*s}\`:'none';
+        const sw = conn.style==='double'? 4*s : 2.5*s;
 
         let connSvg = '';
-        if (conn.style==='double') connSvg += \`<path d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${8*s}" opacity="0.06"/>\`;
+        if (conn.style==='double') connSvg += \`<path d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${10*s}" opacity="0.06"/>\`;
         connSvg += \`<path d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${sw}" stroke-dasharray="\${dash}" opacity="0.5"/>\`;
 
         if (conn.label) {
           const mx = (sx+ex)/2, my = (sy+ey)/2;
-          const lw = conn.label.length * 7 * s + 16 * s;
-          connSvg += \`<rect x="\${mx-lw/2}" y="\${my-10*s}" width="\${lw}" height="\${20*s}" rx="\${10*s}" fill="\${T.clbg}" stroke="\${T.bdr}" stroke-width="\${0.5*s}" opacity="0.93"/>\`;
-          connSvg += \`<text x="\${mx}" y="\${my+4*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
+          // v60: scaled label box for larger conn font (20*s vs 10*s)
+          const lw = conn.label.length * 14 * s + 32 * s;
+          connSvg += \`<rect x="\${mx-lw/2}" y="\${my-20*s}" width="\${lw}" height="\${40*s}" rx="\${20*s}" fill="\${T.clbg}" stroke="\${T.bdr}" stroke-width="\${0.5*s}" opacity="0.93"/>\`;
+          connSvg += \`<text x="\${mx}" y="\${my+8*s}" text-anchor="middle" fill="\${T.cl}" font-size="\${fs.conn}" font-family="' + fontMono + '" font-weight="500" data-conn="\${idx}" style="cursor:pointer">\${conn.label}</text>\`;
         }
         return connSvg;
       }
@@ -391,14 +432,16 @@ const SVG_VIEWER_HTML = `
         const icon = ICONS[nd.type]||ICONS.cloud;
         const params = (nd.params||[]).slice(0,3);
         const isOp = (zones[nd.id]||'').startsWith('op_');
-        const ly = p.cy + iH/2 + 16*s;
+        // v60: increased label offset for larger 38*s label font
+        const ly = p.cy + iH/2 + 28*s;
 
         svg += \`<g data-node="\${nd.id}" style="cursor:\${editMode?'grab':'default'}">\`;
         if (editMode) svg += \`<rect x="\${p.cx-iW/2-6*s}" y="\${p.cy-iH/2-6*s}" width="\${iW+12*s}" height="\${iH+12*s}" rx="\${5*s}" fill="transparent" stroke="\${T.selStroke}" stroke-width="\${1.5*s}" opacity="0.3"/>\`;
         svg += \`<svg x="\${p.cx-iW/2}" y="\${p.cy-iH/2}" width="\${iW}" height="\${iH}" viewBox="0 0 48 36" style="color:\${col};overflow:visible">\${icon}</svg>\`;
         svg += \`<text x="\${p.cx}" y="\${ly}" text-anchor="middle" fill="\${isOp?T.opLabel:T.text}" font-size="\${fs.label}" font-weight="600" data-label="\${nd.id}" style="cursor:pointer">\${nd.label}\${nd.count>1?' (×'+nd.count+')':''}</text>\`;
+        // v60: increased line spacing for larger fonts (label 38*s, param 26*s)
         params.forEach((pr, i) => {
-          svg += \`<text x="\${p.cx}" y="\${ly+15*s+i*14*s}" text-anchor="middle" fill="\${T.ts}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.7" data-param="\${nd.id}-\${i}" style="cursor:pointer">\${pr}</text>\`;
+          svg += \`<text x="\${p.cx}" y="\${ly+32*s+i*28*s}" text-anchor="middle" fill="\${T.ts}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.7" data-param="\${nd.id}-\${i}" style="cursor:pointer">\${pr}</text>\`;
         });
         svg += \`</g>\`;
       });
@@ -737,21 +780,56 @@ const SVG_VIEWER_HTML = `
 
         var svgData = new XMLSerializer().serializeToString(clone);
 
-        // Get filename from diagram title
-        var filename = (topology?.solutionTitle || 'network-topology').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() + '.png';
+        // v60: Use sanitized filename from solution title
+        var filename = sanitizeFilename(topology?.solutionTitle) + '.png';
 
         // v45: Convert SVG to PNG for reliable mobile saving
         // SVG data URIs don't work well with long-press save on mobile
-        var canvas = document.createElement('canvas');
-        canvas.width = 1600;
-        canvas.height = 900;
-        var ctx = canvas.getContext('2d');
+        var exportCanvas = document.createElement('canvas');
+        exportCanvas.width = 1600;
+        exportCanvas.height = 900;
+        var ctx = exportCanvas.getContext('2d');
 
         var tempImg = new Image();
         tempImg.onload = function() {
+          ctx.fillStyle = isDarkMode ? '#171717' : '#ffffff';
+          ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
           ctx.drawImage(tempImg, 0, 0);
-          var pngDataUri = canvas.toDataURL('image/png');
-          showSaveModal(pngDataUri, filename);
+
+          // v60: Try Web Share API directly on touch devices (don't pre-check canShare)
+          if (showShareButton) {
+            exportCanvas.toBlob(function(blob) {
+              if (!blob) {
+                var pngDataUri = exportCanvas.toDataURL('image/png');
+                showSaveModal(pngDataUri, filename);
+                return;
+              }
+
+              var file = new File([blob], filename, { type: 'image/png' });
+
+              // Try share directly - ChatGPT sandbox may block canShare but allow share
+              navigator.share({
+                files: [file],
+                title: (topology?.solutionTitle || 'Network Topology').substring(0, 100),
+                text: 'Network topology diagram'
+              }).then(function() {
+                announceStatus('Diagram shared successfully');
+              }).catch(function(err) {
+                if (err.name === 'AbortError') {
+                  announceStatus('Share cancelled');
+                } else {
+                  // Share failed (blocked by sandbox), fall back to modal
+                  console.warn('Share failed:', err);
+                  var pngDataUri = exportCanvas.toDataURL('image/png');
+                  showSaveModal(pngDataUri, filename);
+                }
+              });
+            }, 'image/png');
+          } else {
+            // Desktop or no share API, use modal
+            var pngDataUri = exportCanvas.toDataURL('image/png');
+            showSaveModal(pngDataUri, filename);
+          }
         };
         tempImg.onerror = function() {
           // Fallback to SVG if PNG conversion fails
@@ -1100,7 +1178,8 @@ const SVG_VIEWER_HTML = `
 // v57: HUGE fonts - title 72px, nodes 56px, params 38px, zones 36px, connections 36px
 // v58: (reverted) BUG-001 render dedup caused layout collapse
 // v59: PERF-001 throttled drag, BUG-002 fix icon jumping (no render dedup)
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v59.html";
+// v60: Web Share API - native share sheet on mobile, fallback to modal
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v60.html";
 
 // Create MCP server instance
 function createServer(): McpServer {

@@ -15,6 +15,14 @@ Key reference files for troubleshooting:
 - `.claude/skills/chatgpt-app-builder/references/widget_development.md` - Widget API and patterns
 - `.claude/skills/chatgpt-app-builder/references/node_chatgpt_app.md` - Server implementation patterns
 
+### Local Skills
+
+| Skill | Path | Purpose |
+|-------|------|---------|
+| **UI UX Pro Max** | `.claude/skills/ui-ux-pro-max/SKILL.md` | Design intelligence, typography, color palettes, accessibility |
+| **iOS Simulator** | `.claude/skills/ios-simulator/SKILL.md` | iOS Simulator MCP tools for mobile testing |
+| **Browser Automation** | `.claude/skills/browser-automation/SKILL.md` | Playwright MCP for ChatGPT web testing |
+
 ### Recommended External Skills
 
 Install additional skills from these safe repositories:
@@ -86,8 +94,10 @@ Specialized agent configurations for different workflows. The **Orchestrator** c
 | Agent | File | Purpose |
 |-------|------|---------|
 | **UX Auditor** | `.claude/agents/UX-AUDITOR.md` | Usability heuristics, experience review |
+| **Visual Design** | `.claude/agents/VISUAL-DESIGN.md` | Typography scales, icon sizing, visual consistency |
 | **Responsive Design** | `.claude/agents/RESPONSIVE-DESIGN.md` | Fluid layouts, breakpoint fixes |
 | **Touch Interaction** | `.claude/agents/TOUCH-INTERACTION.md` | Touch events, gesture handling |
+| **Share Integration** | `.claude/agents/SHARE-INTEGRATION.md` | Web Share API, save/export UX, sandbox workarounds |
 
 ### Using Agents with Task Tool
 
@@ -139,6 +149,8 @@ Deployer (pre-checks) → Deployer (staging) → Tester → Mobile Tester → De
 | Accessibility | Accessibility | Developer |
 | UX improvement | UX Auditor | Developer |
 | Layout issue | Responsive Design | Developer |
+| Typography/sizing | Visual Design | Developer, UX Auditor |
+| Save/export UX | Share Integration | Developer, Mobile Tester |
 | Deployment | Deployer | Tester |
 | Incident | Debugger → Deployer | Developer |
 | Security audit | Security Agent | - |
@@ -161,6 +173,8 @@ Deployer (pre-checks) → Deployer (staging) → Tester → Mobile Tester → De
 | **Multiple issues** | Orchestrator | Coordinates parallel workflows |
 | **Security checks** | Security Agent | Comprehensive audit patterns |
 | **Connector refresh** | Tester | Full delete/recreate workflow |
+| **Font/icon sizing** | Visual Design | Typography scales, cross-renderer consistency |
+| **Save/share features** | Share Integration | Web Share API, sandbox workarounds |
 
 #### Self-check before acting:
 
