@@ -22,12 +22,13 @@ import {
 import { corsHeaders, withCors, errorResponse } from "./cors";
 
 // HTML widget with interactive canvas - drag nodes, edit labels, export SVG
+// v63: Use ChatGPT native fullscreen API - requestDisplayMode({ mode: 'fullscreen' })
 const SVG_VIEWER_HTML = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     :root {
       --color-bg: #ffffff;
@@ -68,44 +69,91 @@ const SVG_VIEWER_HTML = `
       --color-shadow: rgba(0,0,0,0.4);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    html, body { height: 100%; overflow: hidden; }
     body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); }
-    .container { width: 100%; padding: 8px; }
-    /* v61: Professional toolbar styling matching Cisco diagram aesthetic */
-    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; padding: 6px; background: var(--color-bg-soft); border-radius: 8px; border: 1px solid var(--color-border); }
-    .toolbar button {
+
+    /* v63: Adaptive layout - inline vs fullscreen via ChatGPT displayMode */
+    .container { width: 100%; display: flex; flex-direction: column; min-height: 100%; }
+
+    /* Inline mode (default) - compact preview with expand button */
+    .inline-mode .container { padding: 8px; }
+    .inline-mode .toolbar {
+      display: flex; gap: 8px; margin-bottom: 10px; align-items: center;
+      padding: 6px; background: var(--color-bg-soft); border-radius: 8px; border: 1px solid var(--color-border);
+    }
+    .inline-mode .canvas-wrapper {
+      border-radius: 8px; background: var(--color-bg-soft);
+      border: 1px solid var(--color-border); overflow: hidden;
+    }
+    .inline-mode .canvas-wrapper svg { width: 100%; height: auto; display: block; }
+    .inline-mode .full-toolbar { display: none; }
+
+    /* Fullscreen mode - ChatGPT wraps us in modal, we fill the space */
+    .fullscreen-mode .container { padding: 0; height: 100vh; }
+    .fullscreen-mode .toolbar { display: none; }
+    .fullscreen-mode .full-toolbar {
+      display: flex; gap: 8px; padding: 8px 12px; align-items: center; flex-wrap: wrap;
+      background: var(--color-bg-soft); border-bottom: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+    .fullscreen-mode .canvas-wrapper {
+      flex: 1; overflow: auto; background: var(--color-bg-soft); position: relative;
+      touch-action: pan-x pan-y;
+    }
+    .fullscreen-mode .canvas-wrapper svg { display: block; cursor: default; min-height: 100%; }
+    .fullscreen-mode .canvas-wrapper.edit-mode svg { cursor: grab; }
+    .fullscreen-mode .canvas-wrapper.dragging svg { cursor: grabbing; }
+
+    /* Shared toolbar button styles */
+    .toolbar button, .full-toolbar button {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       padding: 10px 16px; border-radius: 6px; border: 1.5px solid var(--color-border);
       background: var(--color-bg); color: var(--color-text-secondary); font-size: 13px; cursor: pointer;
       font-family: var(--font-mono); font-weight: 500; transition: all 0.15s ease;
       min-height: 44px; min-width: 44px;
     }
-    .toolbar button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-accent); color: var(--color-text); box-shadow: 0 2px 8px var(--color-shadow); }
-    .toolbar button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-    .toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
-    .toolbar button.active svg { stroke: var(--color-accent); }
-    .toolbar .zoom-group { display: flex; gap: 0; align-items: center; background: var(--color-bg); border: 1.5px solid var(--color-border); border-radius: 6px; padding: 2px; }
-    .toolbar .zoom-group button { padding: 8px 12px; border: none; border-radius: 4px; min-width: 40px; background: transparent; }
-    .toolbar .zoom-group button:hover { background: var(--color-bg-soft); border-color: transparent; box-shadow: none; }
-    .toolbar .zoom-group span { min-width: 52px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
-    .toolbar .hint { font-size: 12px; color: var(--color-text-muted); margin-left: auto; opacity: 0.8; }
-    @media (max-width: 500px) { .toolbar .hint { display: none; } }
-    .canvas { width: 100%; overflow: auto; border-radius: 8px; background: var(--color-bg-soft); border: 1px solid var(--color-border); position: relative; }
-    .canvas svg { display: block; cursor: default; }
-    .canvas.edit-mode svg { cursor: grab; }
-    .canvas.dragging svg { cursor: grabbing; }
+    .toolbar button svg, .full-toolbar button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .toolbar button:hover, .full-toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-accent); color: var(--color-text); box-shadow: 0 2px 8px var(--color-shadow); }
+    .toolbar button:focus-visible, .full-toolbar button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .toolbar .title { flex: 1; font-size: 14px; font-weight: 600; color: var(--color-text); margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Fullscreen toolbar specific */
+    .full-toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
+    .full-toolbar button.active svg { stroke: var(--color-accent); }
+    .full-toolbar .zoom-group { display: flex; gap: 0; align-items: center; background: var(--color-bg); border: 1.5px solid var(--color-border); border-radius: 6px; padding: 2px; }
+    .full-toolbar .zoom-group button { padding: 8px 12px; border: none; border-radius: 4px; min-width: 40px; background: transparent; }
+    .full-toolbar .zoom-group button:hover { background: var(--color-bg-soft); border-color: transparent; box-shadow: none; }
+    .full-toolbar .zoom-group span { min-width: 52px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+    .full-toolbar .hint { font-size: 12px; color: var(--color-text-muted); margin-left: auto; opacity: 0.8; }
+    @media (max-width: 500px) { .full-toolbar .hint { display: none; } }
+
     .loading { color: var(--color-text-muted); padding: 32px; text-align: center; }
     .edit-input {
       position: fixed; padding: 4px 8px; border: 2px solid var(--color-accent);
       border-radius: 4px; background: var(--color-bg); color: var(--color-text); font-size: 12px;
       font-family: var(--font-sans); outline: none; text-align: center;
-      box-shadow: 0 4px 12px var(--color-shadow); z-index: 1000; min-width: 120px;
+      box-shadow: 0 4px 12px var(--color-shadow); z-index: 10001; min-width: 120px;
     }
   </style>
 </head>
-<body>
+<body class="inline-mode">
+  <!-- v63: Single container that adapts to displayMode -->
   <div class="container">
+    <!-- Inline toolbar (visible in inline mode) -->
     <div class="toolbar">
+      <button id="expandBtn" onclick="window.requestFullscreen()" aria-label="Expand to edit" title="Open fullscreen editor">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        <span>Edit</span>
+      </button>
+      <span class="title" id="diagramTitle"></span>
+      <button id="inlineSaveBtn" onclick="window.exportSVG()" aria-label="Save diagram" title="Save or share diagram">
+        <svg id="inlineSaveBtnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span id="inlineSaveBtnText">Save</span>
+      </button>
+    </div>
+
+    <!-- Full toolbar (visible in fullscreen mode) -->
+    <div class="full-toolbar">
       <button id="editBtn" onclick="window.toggleEdit()" aria-label="Edit diagram layout" aria-pressed="false" title="Edit mode: drag nodes, double-click to rename">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         <span>Edit</span>
@@ -125,10 +173,14 @@ const SVG_VIEWER_HTML = `
       </button>
       <span class="hint" id="hint"></span>
     </div>
-    <div id="canvas" class="canvas"></div>
+
+    <!-- Canvas (shared between modes) -->
+    <div id="canvas" class="canvas-wrapper"></div>
   </div>
   <script>
+    // v63: Single container elements - adapts to displayMode
     var canvas = document.getElementById('canvas');
+    var diagramTitle = document.getElementById('diagramTitle');
     var editBtn = document.getElementById('editBtn');
     var hint = document.getElementById('hint');
 
@@ -140,10 +192,170 @@ const SVG_VIEWER_HTML = `
     var scale = 1.0;
     var activeInput = null;
     var isDarkMode = false;
+    var isFullscreen = false;  // v63: Track displayMode state
 
     // UX-001: Undo/Redo history (use undoStack to avoid conflict with window.history)
     var undoStack = [];
     var undoIndex = -1;
+
+    // v63: Request fullscreen via ChatGPT native API
+    window.requestFullscreen = function() {
+      if (typeof window.openai?.requestDisplayMode === 'function') {
+        window.openai.requestDisplayMode({ mode: 'fullscreen' }).then(function(result) {
+          // ChatGPT handles the modal, we just need to update our state
+          if (result && result.mode === 'fullscreen') {
+            setDisplayMode('fullscreen');
+          }
+        }).catch(function(err) {
+          console.warn('requestDisplayMode failed:', err);
+        });
+      } else {
+        // Fallback: just enable fullscreen mode CSS
+        setDisplayMode('fullscreen');
+      }
+    };
+
+    // v63: Update display mode (called by ChatGPT or fallback)
+    function setDisplayMode(mode) {
+      isFullscreen = (mode === 'fullscreen');
+      document.body.classList.toggle('inline-mode', !isFullscreen);
+      document.body.classList.toggle('fullscreen-mode', isFullscreen);
+
+      // Re-render with appropriate interactivity
+      if (topology) {
+        renderSVG();
+      }
+
+      if (isFullscreen) {
+        announceStatus('Fullscreen editor opened. Drag nodes to move, double-click to edit labels.');
+      } else {
+        announceStatus('Returned to inline view');
+      }
+    }
+
+    // v63: Listen for displayMode changes from ChatGPT
+    function checkDisplayMode() {
+      var mode = window.openai?.displayMode || 'inline';
+      var newIsFullscreen = (mode === 'fullscreen' || mode === 'pip');
+      if (newIsFullscreen !== isFullscreen) {
+        setDisplayMode(newIsFullscreen ? 'fullscreen' : 'inline');
+      }
+    }
+
+    // v63: Render function - uses renderSVG for both modes
+    // In inline mode: static display, in fullscreen: interactive with event handlers
+    function render() {
+      if (!topology) return;
+
+      // In inline mode, render static SVG (no event handlers)
+      // In fullscreen mode, render interactive SVG with event handlers
+      if (isFullscreen) {
+        renderSVG();
+      } else {
+        // Render static preview
+        renderStaticSVG();
+      }
+
+      // Update title in toolbar
+      var title = topology.solutionTitle || 'Network Topology';
+      if (diagramTitle) diagramTitle.textContent = title;
+
+      // Notify ChatGPT of height (inline mode only)
+      if (!isFullscreen && typeof window.openai?.notifyIntrinsicHeight === 'function') {
+        try { window.openai.notifyIntrinsicHeight(canvas.scrollHeight + 80); } catch(e) {}
+      }
+    }
+
+    // v63: Static SVG rendering for inline mode (no event handlers)
+    function renderStaticSVG() {
+      if (!topology) return;
+
+      var w = 1600, h = 900;
+      var s = 1.0;
+      var layout = computeLayout(topology, w, h, s);
+      var pos = layout.pos, zones = layout.zones, iW = layout.iW, iH = layout.iH;
+      var opLeft = layout.opLeft, opRight = layout.opRight, opW = layout.opW, pad = layout.pad;
+      var opCX = layout.opCX, opCY = layout.opCY, custColX = layout.custColX, custColW = layout.custColW;
+      var extColX = layout.extColX, extColW = layout.extColW;
+      var opCloudH = h - pad.t - pad.b + 30 * s;
+      var allNodes = (topology.customerNodes||[]).concat(topology.operatorNodes||[]).concat(topology.externalNodes||[]);
+      var fs = { title: 42 * s, subtitle: 24 * s, zone: 18 * s, label: 32 * s, param: 22 * s, conn: 18 * s, footer: 14 * s };
+      var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+      var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
+      var titleText = topology.solutionTitle || 'Network Topology';
+
+      var svg = '<svg width="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="font-family:' + fontSans + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Network diagram: ' + titleText + '">';
+      svg += '<title>' + titleText + '</title>';
+
+      const gridSize = 28 * s;
+      svg += '<defs><pattern id="grid-preview" width="' + gridSize + '" height="' + gridSize + '" patternUnits="userSpaceOnUse"><circle cx="' + (gridSize/2) + '" cy="' + (gridSize/2) + '" r="' + (0.5*s) + '" fill="' + T.tf + '" opacity="0.3"/></pattern></defs>';
+      svg += '<rect width="' + w + '" height="' + h + '" fill="' + T.bg + '"/>';
+      svg += '<rect width="' + w + '" height="' + h + '" fill="url(#grid-preview)" opacity="0.5"/>';
+
+      svg += '<text x="' + (w/2) + '" y="' + (50*s) + '" text-anchor="middle" fill="' + T.text + '" font-size="' + fs.title + '" font-weight="700">' + topology.solutionTitle + '</text>';
+      svg += '<text x="' + (w/2) + '" y="' + (85*s) + '" text-anchor="middle" fill="' + T.tm + '" font-size="' + fs.subtitle + '" font-family="' + fontMono + '">' + topology.customer + ' · ' + topology.industry + '</text>';
+
+      svg += '<text x="' + (custColX+custColW/2) + '" y="' + (pad.t-25*s) + '" text-anchor="middle" fill="' + T.tf + '" font-size="' + fs.zone + '" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>';
+      svg += '<text x="' + opCX + '" y="' + (pad.t-25*s) + '" text-anchor="middle" fill="' + T.opLabel + '" font-size="' + fs.zone + '" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>';
+      svg += '<text x="' + (extColX+extColW/2) + '" y="' + (pad.t-25*s) + '" text-anchor="middle" fill="' + T.tf + '" font-size="' + fs.zone + '" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>';
+
+      svg += '<path d="' + cloudPath(opCX, opCY, opW+80*s, opCloudH) + '" fill="' + T.opFill + '" stroke="' + T.opStroke + '" stroke-width="' + (2.5*s) + '" stroke-dasharray="' + (10*s) + ',' + (6*s) + '"/>';
+
+      // Connections
+      const nodeIdSet = new Set(Object.keys(layout.pos));
+      const validConnections = (topology.connections||[]).filter(function(conn) {
+        return conn && conn.from && conn.to && nodeIdSet.has(conn.from) && nodeIdSet.has(conn.to);
+      });
+      validConnections.forEach(function(conn) {
+        var f = getPos(conn.from, layout), t = getPos(conn.to, layout);
+        if (!f || !t) return;
+        var sx, sy, ex, ey;
+        if (Math.abs(f.cx - t.cx) < 80*s) {
+          if (f.cy < t.cy) { sx=f.cx; sy=f.cy+iH/2+4*s; ex=t.cx; ey=t.cy-iH/2-4*s; }
+          else { sx=f.cx; sy=f.cy-iH/2-4*s; ex=t.cx; ey=t.cy+iH/2+4*s; }
+        } else if (f.cx < t.cx) { sx=f.cx+iW/2+4*s; sy=f.cy; ex=t.cx-iW/2-4*s; ey=t.cy; }
+        else { sx=f.cx-iW/2-4*s; sy=f.cy; ex=t.cx+iW/2+4*s; ey=t.cy; }
+        var dx=ex-sx, dy=ey-sy, cp=Math.max(Math.abs(dx)*0.3, 30*s);
+        var pathD = Math.abs(dy) > Math.abs(dx)*2
+          ? 'M'+sx+','+sy+' C'+sx+','+(sy+Math.sign(dy)*cp)+' '+ex+','+(ey-Math.sign(dy)*cp)+' '+ex+','+ey
+          : 'M'+sx+','+sy+' C'+(sx+Math.sign(dx)*cp)+','+sy+' '+(ex-Math.sign(dx)*cp)+','+ey+' '+ex+','+ey;
+        var fn = allNodes.find(function(n){ return n.id===conn.from; });
+        var cc = TC[fn?.type]||T.tm;
+        var dash = conn.style==='dashed'? (8*s)+','+(6*s) : 'none';
+        var sw = conn.style==='double'? 4*s : 2.5*s;
+        if (conn.style==='double') svg += '<path d="'+pathD+'" fill="none" stroke="'+cc+'" stroke-width="'+(10*s)+'" opacity="0.06"/>';
+        svg += '<path d="'+pathD+'" fill="none" stroke="'+cc+'" stroke-width="'+sw+'" stroke-dasharray="'+dash+'" opacity="0.5"/>';
+        if (conn.label) {
+          var mx = (sx+ex)/2, my = (sy+ey)/2;
+          var lw = conn.label.length * 12 * s + 28 * s;
+          svg += '<rect x="'+(mx-lw/2)+'" y="'+(my-18*s)+'" width="'+lw+'" height="'+(36*s)+'" rx="'+(18*s)+'" fill="'+T.clbg+'" stroke="'+T.bdr+'" stroke-width="'+(0.5*s)+'" opacity="0.93"/>';
+          svg += '<text x="'+mx+'" y="'+(my+6*s)+'" text-anchor="middle" fill="'+T.cl+'" font-size="'+fs.conn+'" font-family="'+fontMono+'" font-weight="500">'+conn.label+'</text>';
+        }
+      });
+
+      // Nodes
+      allNodes.forEach(function(nd) {
+        var p = getPos(nd.id, layout); if (!p) return;
+        var col = TC[nd.type]||T.tm;
+        var icon = ICONS[nd.type]||ICONS.cloud;
+        var params = (nd.params||[]).slice(0,3);
+        var isOp = (zones[nd.id]||'').startsWith('op_');
+        var ly = p.cy + iH/2 + 24*s;
+        svg += '<g>';
+        svg += '<svg x="'+(p.cx-iW/2)+'" y="'+(p.cy-iH/2)+'" width="'+iW+'" height="'+iH+'" viewBox="0 0 48 36" style="color:'+col+';overflow:visible">'+icon+'</svg>';
+        svg += '<text x="'+p.cx+'" y="'+ly+'" text-anchor="middle" fill="'+(isOp?T.opLabel:T.text)+'" font-size="'+fs.label+'" font-weight="600">'+nd.label+(nd.count>1?' (×'+nd.count+')':'')+'</text>';
+        params.forEach(function(pr, i) {
+          svg += '<text x="'+p.cx+'" y="'+(ly+26*s+i*24*s)+'" text-anchor="middle" fill="'+T.ts+'" font-size="'+fs.param+'" font-family="'+fontMono+'" opacity="0.7">'+pr+'</text>';
+        });
+        svg += '</g>';
+      });
+
+      svg += '<text x="'+opLeft+'" y="'+(h-pad.b+25*s)+'" text-anchor="middle" fill="'+T.opLabel+'" font-size="'+fs.footer+'" font-family="'+fontMono+'" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>';
+      svg += '<text x="'+opRight+'" y="'+(h-pad.b+25*s)+'" text-anchor="middle" fill="'+T.opLabel+'" font-size="'+fs.footer+'" font-family="'+fontMono+'" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>';
+      svg += '</svg>';
+
+      canvas.innerHTML = svg;
+    }
 
     function saveState() {
       // Remove any future states if we're not at the end
@@ -266,6 +478,8 @@ const SVG_VIEWER_HTML = `
 
     updateTheme();
     window.addEventListener('openai:set_globals', updateTheme);
+    // v63: Listen for displayMode changes
+    window.addEventListener('openai:set_globals', checkDisplayMode);
     var TC = {
       hq_building:'#2563EB',branch:'#2563EB',small_site:'#3B82F6',factory:'#D97706',
       data_center:'#7C3AED',router:'#4F46E5',switch:'#4F46E5',firewall:'#DC2626',
@@ -1015,6 +1229,7 @@ const SVG_VIEWER_HTML = `
       rendering: '<svg viewBox="0 0 48 36" width="48" height="36"><rect x="8" y="4" width="24" height="28" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="10" x2="24" y2="10" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="12" y1="16" x2="28" y2="16" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="12" y1="22" x2="20" y2="22" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="36" y1="8" x2="26" y2="26" stroke="currentColor" stroke-width="2"/><polyline points="26,26 24,28 28,30" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="38" cy="6" r="3" fill="currentColor" opacity="0.25"/></svg>'
     };
 
+    // v63: Show loading in canvas
     function showLoading(stage, data) {
       loadingStage = stage;
       const title = data?.solutionTitle || 'Network Topology';
@@ -1036,6 +1251,7 @@ const SVG_VIEWER_HTML = `
       const iconSvg = LOADING_ICONS[stage] || LOADING_ICONS.init;
       const dots = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
 
+      // v63: Render loading to canvas
       canvas.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:32px">' +
         '<style>' +
         '.dots span{animation:blink 1.4s infinite;opacity:0}.dots span:nth-child(2){animation-delay:0.2s}.dots span:nth-child(3){animation-delay:0.4s}@keyframes blink{0%,100%{opacity:0}50%{opacity:1}}' +
@@ -1047,11 +1263,15 @@ const SVG_VIEWER_HTML = `
         (s.sub ? '<div style="margin-top:12px;font-size:12px;color:' + T.tm + '">' + s.sub + '</div>' : '') +
         '</div>';
 
+      // Update title in toolbar
+      if (diagramTitle) diagramTitle.textContent = title !== 'Network Topology' ? title : '';
+
       if (typeof window.openai?.notifyIntrinsicHeight === 'function') {
         try { window.openai.notifyIntrinsicHeight(300); } catch(e) {}
       }
     }
 
+    // v63: Load data and render
     function tryLoad() {
       if (initialized) return true;
       if (typeof window.openai !== 'object' || !window.openai) return false;
@@ -1065,7 +1285,8 @@ const SVG_VIEWER_HTML = `
           initialized = true;
           topology = data;
           if (DEBUG) console.log('Complete data loaded');
-          renderSVG();
+          // v63: Render to preview mode first (user clicks Edit to open fullscreen)
+          render();
           saveState();
           return true;
         }
@@ -1096,11 +1317,13 @@ const SVG_VIEWER_HTML = `
 
         // Small delay to show "Drawing diagram" before render
         setTimeout(() => {
+          if (initialized) return;  // v63: Prevent double render race
           const freshData = tryGetData(window.openai || {});
           if (freshData) {
             topology = freshData;
             initialized = true;
-            renderSVG();
+            // v63: Render to preview (user clicks Edit for fullscreen)
+            render();
             saveState();
           }
         }, 300);
@@ -1123,12 +1346,14 @@ const SVG_VIEWER_HTML = `
 
       // Check if toolOutput is now available (complete data)
       if (openai.toolOutput?.topology || openai.toolOutput) {
+        if (initialized) return;  // v63: Prevent double render race
         hasToolOutput = true;
         const data = tryGetData(openai);
         if (data) {
           topology = data;
           initialized = true;
-          renderSVG();
+          // v63: Render to preview (user clicks Edit for fullscreen)
+          render();
           saveState();
         }
         return;
@@ -1142,6 +1367,7 @@ const SVG_VIEWER_HTML = `
       }
     });
 
+    // v63: Show debug info in preview canvas
     function showDebug() {
       const openai = window.openai || {};
       const info = {
@@ -1207,7 +1433,8 @@ const SVG_VIEWER_HTML = `
 // v59: PERF-001 throttled drag, BUG-002 fix icon jumping (no render dedup)
 // v60: Web Share API - native share sheet on mobile, fallback to modal
 // v61: Professional SVG toolbar icons, refined button styling, focus states
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v61.html";
+// v63: Fullscreen overlay mode - preview in chat, expand for interactive editing
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v63.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
