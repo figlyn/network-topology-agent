@@ -998,6 +998,9 @@ Each button announces its purpose:
 
 | Test ID | Date | Agent | Result | Notes |
 |---------|------|-------|--------|-------|
+| TC-UX008-01 | 2026-02-26 | Tester | PASS | Inline button displays "Expand" after connector refresh |
+| TC-UX008-03 | 2026-02-26 | Tester | PASS | Fullscreen mode opens correctly |
+| TC-UX008-04 | 2026-02-26 | Tester | PASS | Fullscreen Edit button shows "Edit", toggles to "Editing" |
 | _example_ | 2026-02-23 | Tester | PASS | Worked as expected |
 
 ---
@@ -1497,6 +1500,613 @@ Each button announces its purpose:
 - Position consistent between renders
 
 **Test Type:** Automated
+**Agent:** Tester
+
+---
+
+## RACE-001: Double Render Race Condition (v62 Fix)
+
+The v62 fix adds `initialized` guards to prevent multiple `renderSVG()` calls when both `tool-result` message and `set_globals` event fire. Previously, this race condition caused generation times >1 minute.
+
+### TC-RACE001-01: Single Render on Initial Load
+
+**Preconditions:**
+- Fresh ChatGPT conversation
+- Connector deleted and recreated to get fresh widget code
+- DevTools Console open with "Preserve log" enabled
+
+**Steps:**
+1. Add console instrumentation before generating: `window.renderCount = 0;`
+2. Send prompt: "Create a simple network diagram with 3 nodes"
+3. After diagram displays, check `window.renderCount` in console
+4. Also observe visual - note any flicker/double appearance
+
+**Expected Result:**
+- `renderCount` should be exactly 1
+- No visible flicker or double diagram appearance
+- Diagram renders once after data is complete
+
+**Timing Requirement:** N/A (count-based)
+**Actual Result:** [ ] PASS / [ ] FAIL - Count: ___
+
+**Test Type:** Manual + Automated
+**Agent:** Tester
+
+---
+
+### TC-RACE001-02: No Double Render from tool-result and set_globals Race
+
+**Preconditions:**
+- DevTools Console open
+- Console instrumentation to log render triggers:
+```javascript
+window.renderTriggers = [];
+// Patch widget to log: renderTriggers.push({source: 'tool-result|set_globals', time: Date.now()})
+```
+
+**Steps:**
+1. Generate a topology diagram
+2. After completion, examine `window.renderTriggers`
+3. Check for both `tool-result` and `set_globals` entries
+4. Verify only ONE resulted in actual render
+
+**Expected Result:**
+- Both `tool-result` and `set_globals` may fire
+- Only first event triggers render (second blocked by `initialized` guard)
+- Console shows "Already initialized, skipping..." for blocked event
+
+**Timing Requirement:** N/A (guard-based)
+**Actual Result:** [ ] PASS / [ ] FAIL - Triggers logged: ___
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-RACE001-03: Generation Time Under 30 Seconds
+
+**Preconditions:**
+- Fresh ChatGPT conversation with connector
+- Stopwatch ready
+- Standard network conditions (no throttling)
+
+**Steps:**
+1. Start timer when sending prompt: "Create a network diagram showing a company HQ connected to 3 branch offices through an MPLS cloud"
+2. Stop timer when diagram is fully visible and interactive
+3. Record total time
+
+**Expected Result:**
+- Total generation time < 30 seconds
+- Previous race condition caused >1 minute times
+- This confirms race condition is fixed
+
+**Timing Requirement:** < 30 seconds
+**Actual Result:** [ ] PASS / [ ] FAIL - Time: ___ seconds
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-04: Generation Time Consistency (3 trials)
+
+**Preconditions:**
+- Fresh ChatGPT conversation each trial
+- Same prompt used each time
+
+**Steps:**
+1. Run 3 separate generation tests with same prompt
+2. Record time for each:
+   - Trial 1: ___ seconds
+   - Trial 2: ___ seconds
+   - Trial 3: ___ seconds
+3. Calculate average
+
+**Expected Result:**
+- All trials < 30 seconds
+- No outliers >45 seconds (would indicate race condition still occurring)
+- Consistent timing across trials (variance < 10 seconds)
+
+**Timing Requirement:** Average < 30 seconds, max < 45 seconds
+**Actual Result:** [ ] PASS / [ ] FAIL - Avg: ___ seconds, Max: ___ seconds
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-05: Diagram Displays All Nodes Correctly
+
+**Preconditions:**
+- Generated diagram visible
+
+**Steps:**
+1. Generate: "Network with HQ, 2 branch offices, firewall, and cloud connection"
+2. Count visible nodes in diagram
+3. Verify each expected node is present:
+   - [ ] HQ node
+   - [ ] Branch 1 node
+   - [ ] Branch 2 node
+   - [ ] Firewall node
+   - [ ] Cloud node
+
+**Expected Result:**
+- All 5 nodes visible
+- Nodes have correct icons (not generic placeholders)
+- Labels readable
+
+**Timing Requirement:** N/A
+**Actual Result:** [ ] PASS / [ ] FAIL - Nodes found: ___/5
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-06: Diagram Displays All Connections Correctly
+
+**Preconditions:**
+- Generated diagram from TC-RACE001-05 visible
+
+**Steps:**
+1. Count connection lines in diagram
+2. Verify connections make logical sense:
+   - HQ connected to network
+   - Branches connected to network
+   - Firewall in appropriate position
+3. No orphan nodes (all nodes connected)
+
+**Expected Result:**
+- All expected connections visible
+- Connection lines render correctly (no broken/missing lines)
+- No partial rendering (connections appeared in previous versions as delayed)
+
+**Timing Requirement:** N/A
+**Actual Result:** [ ] PASS / [ ] FAIL - Connections: ___
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-07: Edit Mode Works After Single Render
+
+**Preconditions:**
+- Diagram generated and visible
+- Confirmed single render (TC-RACE001-01 passed)
+
+**Steps:**
+1. Click Edit button
+2. Drag a node to new position
+3. Node should move smoothly
+4. Click Edit button to exit
+
+**Expected Result:**
+- Edit mode activates immediately
+- Drag works on first attempt
+- No need to wait or retry
+- Confirms event handlers attached correctly on single render
+
+**Timing Requirement:** Edit mode responsive < 100ms after click
+**Actual Result:** [ ] PASS / [ ] FAIL
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-08: Save Modal Works After Single Render
+
+**Preconditions:**
+- Diagram generated and visible
+- Confirmed single render
+
+**Steps:**
+1. Click Save button
+2. Verify modal appears with diagram image
+3. Close modal
+
+**Expected Result:**
+- Modal appears immediately
+- Diagram image visible in modal
+- PNG conversion successful (for mobile save)
+- Confirms all initialization complete on single render
+
+**Timing Requirement:** Modal appears < 200ms after click
+**Actual Result:** [ ] PASS / [ ] FAIL
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-09: No Console Errors During Generation
+
+**Preconditions:**
+- DevTools Console open, filtered to Errors
+- Clear console before test
+
+**Steps:**
+1. Generate a topology diagram
+2. Wait for completion
+3. Check console for any errors
+
+**Expected Result:**
+- No JavaScript errors in console
+- No "undefined" or "null" reference errors
+- No race condition related errors (e.g., "Cannot read property of undefined")
+
+**Timing Requirement:** N/A
+**Actual Result:** [ ] PASS / [ ] FAIL - Errors: ___
+
+**Test Type:** Automated
+**Agent:** Tester
+
+---
+
+### TC-RACE001-10: Complex Topology Generation Time
+
+**Preconditions:**
+- Fresh ChatGPT conversation
+
+**Steps:**
+1. Start timer
+2. Generate complex prompt: "Enterprise network with headquarters, 5 branch offices, data center with 3 servers, firewall cluster, load balancer, and connections to AWS and Azure clouds"
+3. Stop timer when diagram fully rendered
+
+**Expected Result:**
+- Complex diagram renders in < 45 seconds
+- All nodes and connections visible
+- No timeout or partial render
+
+**Timing Requirement:** < 45 seconds for complex topology
+**Actual Result:** [ ] PASS / [ ] FAIL - Time: ___ seconds, Nodes: ___
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-RACE001-11: Mobile Generation Time (375px viewport)
+
+**Preconditions:**
+- ChatGPT mobile web or DevTools mobile emulation
+- 375px viewport width
+
+**Steps:**
+1. Start timer
+2. Generate simple topology (3 nodes)
+3. Stop timer when diagram visible
+
+**Expected Result:**
+- Generation time < 30 seconds on mobile viewport
+- No additional delay compared to desktop
+- Diagram renders correctly at mobile size
+
+**Timing Requirement:** < 30 seconds
+**Actual Result:** [ ] PASS / [ ] FAIL - Time: ___ seconds
+
+**Test Type:** Manual
+**Agent:** Mobile Tester
+
+---
+
+### TC-RACE001-12: iOS App Generation Time
+
+**Preconditions:**
+- ChatGPT iOS app
+- Connector configured
+
+**Steps:**
+1. Start timer
+2. Generate simple topology
+3. Stop timer when diagram visible
+
+**Expected Result:**
+- Generation time < 30 seconds on iOS
+- No "write action disabled" error (v46 fix still working)
+- Diagram renders completely
+
+**Timing Requirement:** < 30 seconds
+**Actual Result:** [ ] PASS / [ ] FAIL - Time: ___ seconds
+
+**Test Type:** Manual (Device)
+**Agent:** Mobile Tester
+
+---
+
+## UX-008: Confusing "Edit" Button on Inline vs Fullscreen Views
+
+The issue: Both inline mode and fullscreen mode have buttons labeled "Edit" that do different things, causing user confusion.
+
+- **Inline mode button**: Currently labeled "Edit" but actually expands to fullscreen (should be "Expand")
+- **Fullscreen mode button**: Labeled "Edit" and correctly toggles edit mode
+
+### TC-UX008-01: Inline Button Displays "Expand" Text
+
+**Preconditions:**
+- Widget loaded in ChatGPT
+- Diagram rendered in inline (non-fullscreen) mode
+- Inline toolbar visible
+
+**Steps:**
+1. Locate the first button in the inline toolbar (left side)
+2. Read the button text label
+
+**Expected Result:**
+- Button displays "Expand" (not "Edit")
+- Text clearly indicates the action will expand the view
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-02: Inline Button Has Expand Icon (Arrows Outward)
+
+**Preconditions:**
+- Widget loaded in inline mode
+- Inline toolbar visible
+
+**Steps:**
+1. Locate the expand button in the inline toolbar
+2. Examine the SVG icon within the button
+3. Verify icon visual represents expansion/fullscreen
+
+**Expected Result:**
+- Icon shows arrows pointing outward (expand/fullscreen iconography)
+- Icon is NOT a pencil/edit icon
+- Icon visually communicates "make bigger" or "fullscreen"
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-03: Inline Button Opens Fullscreen Mode on Click
+
+**Preconditions:**
+- Widget loaded in inline mode
+- Inline toolbar visible
+
+**Steps:**
+1. Click the expand button (first button in inline toolbar)
+2. Observe the widget state change
+
+**Expected Result:**
+- Widget transitions to fullscreen mode
+- Full toolbar becomes visible (with zoom controls, edit button)
+- Canvas expands to fill available space
+- No edit mode is enabled (nodes not draggable yet)
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-04: Fullscreen Edit Button Displays "Edit" Text
+
+**Preconditions:**
+- Widget loaded and expanded to fullscreen mode
+- Full toolbar visible
+
+**Steps:**
+1. Locate the Edit button in the fullscreen toolbar
+2. Read the button text label
+
+**Expected Result:**
+- Button displays "Edit" text
+- This is the correct label since clicking enables node editing
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-05: Fullscreen Edit Button Toggles Edit Mode
+
+**Preconditions:**
+- Widget in fullscreen mode
+- Edit mode currently OFF
+
+**Steps:**
+1. Click the Edit button in fullscreen toolbar
+2. Observe button state change
+3. Attempt to drag a node
+4. Click Edit button again
+5. Attempt to drag a node
+
+**Expected Result:**
+- Step 2: Button shows "Editing" or pressed state, aria-pressed="true"
+- Step 3: Nodes are draggable, selection rectangles visible
+- Step 4: Button returns to "Edit" state, aria-pressed="false"
+- Step 5: Nodes are NOT draggable (edit mode disabled)
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-06: User Can Distinguish Expand vs Edit Actions
+
+**Preconditions:**
+- Widget loaded in inline mode
+- User unfamiliar with widget
+
+**Steps:**
+1. Observe inline toolbar without clicking
+2. Note button labels and icons
+3. Ask: "What do you expect each button to do?"
+4. Compare user expectation to actual behavior
+
+**Expected Result:**
+- "Expand" button clearly indicates it will enlarge/fullscreen the view
+- "Save" button clearly indicates it will save the diagram
+- No confusion about what each button does
+- User does NOT expect "Expand" to enable node editing
+
+**Test Type:** Manual (Usability)
+**Agent:** UX Auditor
+
+---
+
+### TC-UX008-07: Accessible Labels Match Visible Text (aria-label)
+
+**Preconditions:**
+- Widget loaded
+- DevTools or screen reader available
+
+**Steps:**
+1. In inline mode, inspect expand button's aria-label attribute
+2. Compare aria-label to visible text
+3. Expand to fullscreen
+4. Inspect edit button's aria-label attribute
+5. Compare aria-label to visible text
+
+**Expected Result:**
+- Inline expand button:
+  - Visible text: "Expand"
+  - aria-label: "Expand to fullscreen" or "Open fullscreen editor" (related meaning)
+- Fullscreen edit button:
+  - Visible text: "Edit"
+  - aria-label: "Edit diagram" or "Edit diagram layout" (related meaning)
+- aria-labels are descriptive and match the action
+- No mismatch where aria-label says "Edit" but button says "Expand"
+
+**Test Type:** Automated
+**Agent:** Accessibility
+
+---
+
+### TC-UX008-08: Mobile Tap Accuracy on Expand Button
+
+**Preconditions:**
+- Widget loaded on touch device or mobile emulation (375px viewport)
+- Inline mode visible
+
+**Steps:**
+1. Tap the expand button with thumb
+2. Observe if tap registers correctly
+3. Repeat 5 times
+
+**Expected Result:**
+- Tap registers on first attempt each time
+- Button is at least 44x44px touch target
+- No mis-taps or accidental triggers of adjacent elements
+- Fullscreen mode activates reliably
+
+**Test Type:** Manual (Device)
+**Agent:** Mobile Tester
+
+---
+
+### TC-UX008-09: Inline Button Tooltip Shows "Fullscreen" or "Expand"
+
+**Preconditions:**
+- Widget loaded in inline mode on desktop
+- Mouse cursor available
+
+**Steps:**
+1. Hover over the expand button
+2. Wait for tooltip to appear
+3. Read tooltip text
+
+**Expected Result:**
+- Tooltip displays "Open fullscreen editor" or similar expansion-related text
+- Tooltip does NOT say "Edit diagram" or imply editing
+- Tooltip matches the button's actual function
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-10: VoiceOver Announces Expand Button Correctly
+
+**Preconditions:**
+- macOS with VoiceOver enabled
+- Widget loaded in inline mode
+
+**Steps:**
+1. Enable VoiceOver
+2. Navigate to the inline toolbar expand button
+3. Listen to VoiceOver announcement
+
+**Expected Result:**
+- VoiceOver announces: "Expand" or "Expand to fullscreen, button"
+- Does NOT announce "Edit" which would be confusing
+- Announcement matches the button's visual label
+
+**Test Type:** Manual
+**Agent:** Accessibility
+
+---
+
+### TC-UX008-11: Button States Consistent Across Light/Dark Mode
+
+**Preconditions:**
+- Widget loaded
+- System theme can be toggled
+
+**Steps:**
+1. In light mode, observe expand button appearance in inline toolbar
+2. Switch to dark mode
+3. Observe expand button appearance
+4. Expand to fullscreen
+5. Observe edit button in both themes
+
+**Expected Result:**
+- Button text "Expand" readable in both themes
+- Button icon visible with good contrast in both themes
+- Edit button (fullscreen) readable in both themes
+- No visibility issues with either button
+
+**Test Type:** Manual
+**Agent:** Tester
+
+---
+
+### TC-UX008-12: Keyboard Navigation to Expand Button
+
+**Preconditions:**
+- Widget loaded in inline mode
+- Keyboard available
+
+**Steps:**
+1. Click inside widget to focus
+2. Press Tab to navigate to first focusable element
+3. Continue tabbing to reach expand button
+4. Press Enter or Space to activate
+
+**Expected Result:**
+- Expand button is keyboard accessible
+- Focus indicator visible on button
+- Enter/Space activates fullscreen expansion
+- Tab order is logical (expand button early in sequence)
+
+**Test Type:** Manual
+**Agent:** Accessibility
+
+---
+
+### TC-UX008-13: Icon Changes Between Inline and Fullscreen Modes
+
+**Preconditions:**
+- Widget loaded
+
+**Steps:**
+1. In inline mode, note the expand button icon (arrows outward)
+2. Click expand button to enter fullscreen
+3. Note the edit button icon in fullscreen toolbar (pencil icon)
+4. Compare the two icons
+
+**Expected Result:**
+- Inline expand button: Outward arrows icon (fullscreen/expand iconography)
+- Fullscreen edit button: Pencil icon (edit iconography)
+- Icons are visually distinct and match their function
+- No icon reuse that could cause confusion
+
+**Test Type:** Manual
 **Agent:** Tester
 
 ---

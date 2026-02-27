@@ -22,12 +22,13 @@ import {
 import { corsHeaders, withCors, errorResponse } from "./cors";
 
 // HTML widget with interactive canvas - drag nodes, edit labels, export SVG
+// v63: Use ChatGPT native fullscreen API - requestDisplayMode({ mode: 'fullscreen' })
 const SVG_VIEWER_HTML = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <style>
     :root {
       --color-bg: #ffffff;
@@ -68,44 +69,95 @@ const SVG_VIEWER_HTML = `
       --color-shadow: rgba(0,0,0,0.4);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    html, body { height: 100%; overflow: hidden; }
     body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); }
-    .container { width: 100%; padding: 8px; }
-    /* v61: Professional toolbar styling matching Cisco diagram aesthetic */
-    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; padding: 6px; background: var(--color-bg-soft); border-radius: 8px; border: 1px solid var(--color-border); }
-    .toolbar button {
+
+    /* v63: Adaptive layout - inline vs fullscreen via ChatGPT displayMode */
+    .container { width: 100%; display: flex; flex-direction: column; min-height: 100%; }
+
+    /* Inline mode (default) - compact preview with expand button */
+    .inline-mode .container { padding: 8px; }
+    .inline-mode .toolbar {
+      display: flex; gap: 8px; margin-bottom: 10px; align-items: center;
+      padding: 6px; background: var(--color-bg-soft); border-radius: 8px; border: 1px solid var(--color-border);
+    }
+    .inline-mode .canvas-wrapper {
+      border-radius: 8px; background: var(--color-bg-soft);
+      border: 1px solid var(--color-border); overflow: hidden;
+    }
+    .inline-mode .canvas-wrapper svg { width: 100%; height: auto; display: block; }
+    .inline-mode .full-toolbar { display: none; }
+
+    /* Fullscreen mode - ChatGPT wraps us in modal, we fill the space */
+    .fullscreen-mode .container { padding: 0; height: 100vh; }
+    .fullscreen-mode .toolbar { display: none; }
+    .fullscreen-mode .full-toolbar {
+      display: flex; gap: 8px; padding: 8px 12px; align-items: center; flex-wrap: wrap;
+      background: var(--color-bg-soft); border-bottom: 1px solid var(--color-border);
+      flex-shrink: 0;
+      /* MOB-006: iOS safe area insets to prevent toolbar being hidden under status bar */
+      padding-top: max(8px, env(safe-area-inset-top, 8px));
+      padding-left: max(12px, env(safe-area-inset-left, 12px));
+      padding-right: max(12px, env(safe-area-inset-right, 12px));
+    }
+    .fullscreen-mode .canvas-wrapper {
+      flex: 1; overflow: auto; background: var(--color-bg-soft); position: relative;
+      touch-action: pan-x pan-y;
+    }
+    .fullscreen-mode .canvas-wrapper svg { display: block; cursor: default; min-height: 100%; }
+    .fullscreen-mode .canvas-wrapper.edit-mode svg { cursor: grab; }
+    .fullscreen-mode .canvas-wrapper.dragging svg { cursor: grabbing; }
+
+    /* Shared toolbar button styles */
+    .toolbar button, .full-toolbar button {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       padding: 10px 16px; border-radius: 6px; border: 1.5px solid var(--color-border);
       background: var(--color-bg); color: var(--color-text-secondary); font-size: 13px; cursor: pointer;
       font-family: var(--font-mono); font-weight: 500; transition: all 0.15s ease;
       min-height: 44px; min-width: 44px;
     }
-    .toolbar button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-accent); color: var(--color-text); box-shadow: 0 2px 8px var(--color-shadow); }
-    .toolbar button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-    .toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
-    .toolbar button.active svg { stroke: var(--color-accent); }
-    .toolbar .zoom-group { display: flex; gap: 0; align-items: center; background: var(--color-bg); border: 1.5px solid var(--color-border); border-radius: 6px; padding: 2px; }
-    .toolbar .zoom-group button { padding: 8px 12px; border: none; border-radius: 4px; min-width: 40px; background: transparent; }
-    .toolbar .zoom-group button:hover { background: var(--color-bg-soft); border-color: transparent; box-shadow: none; }
-    .toolbar .zoom-group span { min-width: 52px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
-    .toolbar .hint { font-size: 12px; color: var(--color-text-muted); margin-left: auto; opacity: 0.8; }
-    @media (max-width: 500px) { .toolbar .hint { display: none; } }
-    .canvas { width: 100%; overflow: auto; border-radius: 8px; background: var(--color-bg-soft); border: 1px solid var(--color-border); position: relative; }
-    .canvas svg { display: block; cursor: default; }
-    .canvas.edit-mode svg { cursor: grab; }
-    .canvas.dragging svg { cursor: grabbing; }
+    .toolbar button svg, .full-toolbar button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .toolbar button:hover, .full-toolbar button:hover { background: var(--color-bg-soft); border-color: var(--color-accent); color: var(--color-text); box-shadow: 0 2px 8px var(--color-shadow); }
+    .toolbar button:focus-visible, .full-toolbar button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .toolbar .title { flex: 1; font-size: 14px; font-weight: 600; color: var(--color-text); margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Fullscreen toolbar specific */
+    .full-toolbar button.active { background: var(--color-accent-bg); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
+    .full-toolbar button.active svg { stroke: var(--color-accent); }
+    .full-toolbar .zoom-group { display: flex; gap: 0; align-items: center; background: var(--color-bg); border: 1.5px solid var(--color-border); border-radius: 6px; padding: 2px; }
+    .full-toolbar .zoom-group button { padding: 8px 12px; border: none; border-radius: 4px; min-width: 40px; background: transparent; }
+    .full-toolbar .zoom-group button:hover { background: var(--color-bg-soft); border-color: transparent; box-shadow: none; }
+    .full-toolbar .zoom-group span { min-width: 52px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+    .full-toolbar .hint { font-size: 12px; color: var(--color-text-muted); margin-left: auto; opacity: 0.8; }
+    @media (max-width: 500px) { .full-toolbar .hint { display: none; } }
+
     .loading { color: var(--color-text-muted); padding: 32px; text-align: center; }
     .edit-input {
       position: fixed; padding: 4px 8px; border: 2px solid var(--color-accent);
       border-radius: 4px; background: var(--color-bg); color: var(--color-text); font-size: 12px;
       font-family: var(--font-sans); outline: none; text-align: center;
-      box-shadow: 0 4px 12px var(--color-shadow); z-index: 1000; min-width: 120px;
+      box-shadow: 0 4px 12px var(--color-shadow); z-index: 10001; min-width: 120px;
     }
   </style>
 </head>
-<body>
+<body class="inline-mode">
+  <!-- v63: Single container that adapts to displayMode -->
   <div class="container">
+    <!-- Inline toolbar (visible in inline mode) -->
     <div class="toolbar">
+      <button id="expandBtn" onclick="window.requestFullscreen()" aria-label="Expand to fullscreen editor" title="Open fullscreen editor">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        <span>Expand</span>
+      </button>
+      <span class="title" id="diagramTitle"></span>
+      <button id="inlineSaveBtn" onclick="window.exportSVG()" aria-label="Save diagram" title="Save or share diagram">
+        <svg id="inlineSaveBtnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span id="inlineSaveBtnText">Save</span>
+      </button>
+    </div>
+
+    <!-- Full toolbar (visible in fullscreen mode) -->
+    <div class="full-toolbar">
       <button id="editBtn" onclick="window.toggleEdit()" aria-label="Edit diagram layout" aria-pressed="false" title="Edit mode: drag nodes, double-click to rename">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         <span>Edit</span>
@@ -125,10 +177,14 @@ const SVG_VIEWER_HTML = `
       </button>
       <span class="hint" id="hint"></span>
     </div>
-    <div id="canvas" class="canvas"></div>
+
+    <!-- Canvas (shared between modes) -->
+    <div id="canvas" class="canvas-wrapper"></div>
   </div>
   <script>
+    // v63: Single container elements - adapts to displayMode
     var canvas = document.getElementById('canvas');
+    var diagramTitle = document.getElementById('diagramTitle');
     var editBtn = document.getElementById('editBtn');
     var hint = document.getElementById('hint');
 
@@ -140,10 +196,171 @@ const SVG_VIEWER_HTML = `
     var scale = 1.0;
     var activeInput = null;
     var isDarkMode = false;
+    var isFullscreen = false;  // v63: Track displayMode state
 
     // UX-001: Undo/Redo history (use undoStack to avoid conflict with window.history)
     var undoStack = [];
     var undoIndex = -1;
+
+    // v63: Request fullscreen via ChatGPT native API
+    window.requestFullscreen = function() {
+      if (typeof window.openai?.requestDisplayMode === 'function') {
+        window.openai.requestDisplayMode({ mode: 'fullscreen' }).then(function(result) {
+          // ChatGPT handles the modal, we just need to update our state
+          if (result && result.mode === 'fullscreen') {
+            setDisplayMode('fullscreen');
+          }
+        }).catch(function(err) {
+          console.warn('requestDisplayMode failed:', err);
+        });
+      } else {
+        // Fallback: just enable fullscreen mode CSS
+        setDisplayMode('fullscreen');
+      }
+    };
+
+    // v63: Update display mode (called by ChatGPT or fallback)
+    function setDisplayMode(mode) {
+      isFullscreen = (mode === 'fullscreen');
+      document.body.classList.toggle('inline-mode', !isFullscreen);
+      document.body.classList.toggle('fullscreen-mode', isFullscreen);
+
+      // Re-render with appropriate interactivity
+      if (topology) {
+        renderSVG();
+      }
+
+      if (isFullscreen) {
+        announceStatus('Fullscreen editor opened. Drag nodes to move, double-click to edit labels.');
+      } else {
+        announceStatus('Returned to inline view');
+      }
+    }
+
+    // v63: Listen for displayMode changes from ChatGPT
+    function checkDisplayMode() {
+      var mode = window.openai?.displayMode || 'inline';
+      var newIsFullscreen = (mode === 'fullscreen' || mode === 'pip');
+      if (newIsFullscreen !== isFullscreen) {
+        setDisplayMode(newIsFullscreen ? 'fullscreen' : 'inline');
+      }
+    }
+
+    // v63: Render function - uses renderSVG for both modes
+    // In inline mode: static display, in fullscreen: interactive with event handlers
+    function render() {
+      if (!topology) return;
+
+      // In inline mode, render static SVG (no event handlers)
+      // In fullscreen mode, render interactive SVG with event handlers
+      if (isFullscreen) {
+        renderSVG();
+      } else {
+        // Render static preview
+        renderStaticSVG();
+      }
+
+      // Update title in toolbar
+      var title = topology.solutionTitle || 'Network Topology';
+      if (diagramTitle) diagramTitle.textContent = title;
+
+      // Notify ChatGPT of height (inline mode only)
+      if (!isFullscreen && typeof window.openai?.notifyIntrinsicHeight === 'function') {
+        try { window.openai.notifyIntrinsicHeight(canvas.scrollHeight + 80); } catch(e) {}
+      }
+    }
+
+    // v63: Static SVG rendering for inline mode (no event handlers)
+    function renderStaticSVG() {
+      if (!topology) return;
+
+      var w = 1600, h = 900;
+      var s = 1.0;
+      var layout = computeLayout(topology, w, h, s);
+      var pos = layout.pos, zones = layout.zones, iW = layout.iW, iH = layout.iH;
+      var opLeft = layout.opLeft, opRight = layout.opRight, opW = layout.opW, pad = layout.pad;
+      var opCX = layout.opCX, opCY = layout.opCY, custColX = layout.custColX, custColW = layout.custColW;
+      var extColX = layout.extColX, extColW = layout.extColW;
+      var opCloudH = h - pad.t - pad.b + 30 * s;
+      var allNodes = (topology.customerNodes||[]).concat(topology.operatorNodes||[]).concat(topology.externalNodes||[]);
+      // Font sizes scaled to 75% of original (v62)
+      var fs = { title: 32 * s, subtitle: 18 * s, zone: 14 * s, label: 24 * s, param: 16 * s, conn: 14 * s, footer: 10 * s };
+      var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+      var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
+      var titleText = topology.solutionTitle || 'Network Topology';
+
+      var svg = '<svg width="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="font-family:' + fontSans + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Network diagram: ' + titleText + '">';
+      svg += '<title>' + titleText + '</title>';
+
+      const gridSize = 28 * s;
+      svg += '<defs><pattern id="grid-preview" width="' + gridSize + '" height="' + gridSize + '" patternUnits="userSpaceOnUse"><circle cx="' + (gridSize/2) + '" cy="' + (gridSize/2) + '" r="' + (0.5*s) + '" fill="' + T.tf + '" opacity="0.3"/></pattern></defs>';
+      svg += '<rect width="' + w + '" height="' + h + '" fill="' + T.bg + '"/>';
+      svg += '<rect width="' + w + '" height="' + h + '" fill="url(#grid-preview)" opacity="0.5"/>';
+
+      svg += '<text x="' + (w/2) + '" y="' + (50*s) + '" text-anchor="middle" fill="' + T.text + '" font-size="' + fs.title + '" font-weight="700">' + topology.solutionTitle + '</text>';
+      svg += '<text x="' + (w/2) + '" y="' + (85*s) + '" text-anchor="middle" fill="' + T.tm + '" font-size="' + fs.subtitle + '" font-family="' + fontMono + '">' + topology.customer + ' · ' + topology.industry + '</text>';
+
+      svg += '<text x="' + (custColX+custColW/2) + '" y="' + (pad.t-25*s) + '" text-anchor="middle" fill="' + T.tf + '" font-size="' + fs.zone + '" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">CUSTOMER PREMISES</text>';
+      svg += '<text x="' + opCX + '" y="' + (pad.t-25*s) + '" text-anchor="middle" fill="' + T.opLabel + '" font-size="' + fs.zone + '" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">OPERATOR NETWORK</text>';
+      svg += '<text x="' + (extColX+extColW/2) + '" y="' + (pad.t-25*s) + '" text-anchor="middle" fill="' + T.tf + '" font-size="' + fs.zone + '" font-family="' + fontMono + '" letter-spacing="2" font-weight="600">EXTERNAL SERVICES</text>';
+
+      svg += '<path d="' + cloudPath(opCX, opCY, opW+80*s, opCloudH) + '" fill="' + T.opFill + '" stroke="' + T.opStroke + '" stroke-width="' + (2.5*s) + '" stroke-dasharray="' + (10*s) + ',' + (6*s) + '"/>';
+
+      // Connections
+      const nodeIdSet = new Set(Object.keys(layout.pos));
+      const validConnections = (topology.connections||[]).filter(function(conn) {
+        return conn && conn.from && conn.to && nodeIdSet.has(conn.from) && nodeIdSet.has(conn.to);
+      });
+      validConnections.forEach(function(conn) {
+        var f = getPos(conn.from, layout), t = getPos(conn.to, layout);
+        if (!f || !t) return;
+        var sx, sy, ex, ey;
+        if (Math.abs(f.cx - t.cx) < 80*s) {
+          if (f.cy < t.cy) { sx=f.cx; sy=f.cy+iH/2+4*s; ex=t.cx; ey=t.cy-iH/2-4*s; }
+          else { sx=f.cx; sy=f.cy-iH/2-4*s; ex=t.cx; ey=t.cy+iH/2+4*s; }
+        } else if (f.cx < t.cx) { sx=f.cx+iW/2+4*s; sy=f.cy; ex=t.cx-iW/2-4*s; ey=t.cy; }
+        else { sx=f.cx-iW/2-4*s; sy=f.cy; ex=t.cx+iW/2+4*s; ey=t.cy; }
+        var dx=ex-sx, dy=ey-sy, cp=Math.max(Math.abs(dx)*0.3, 30*s);
+        var pathD = Math.abs(dy) > Math.abs(dx)*2
+          ? 'M'+sx+','+sy+' C'+sx+','+(sy+Math.sign(dy)*cp)+' '+ex+','+(ey-Math.sign(dy)*cp)+' '+ex+','+ey
+          : 'M'+sx+','+sy+' C'+(sx+Math.sign(dx)*cp)+','+sy+' '+(ex-Math.sign(dx)*cp)+','+ey+' '+ex+','+ey;
+        var fn = allNodes.find(function(n){ return n.id===conn.from; });
+        var cc = TC[fn?.type]||T.tm;
+        var dash = conn.style==='dashed'? (8*s)+','+(6*s) : 'none';
+        var sw = conn.style==='double'? 4*s : 2.5*s;
+        if (conn.style==='double') svg += '<path d="'+pathD+'" fill="none" stroke="'+cc+'" stroke-width="'+(10*s)+'" opacity="0.06"/>';
+        svg += '<path d="'+pathD+'" fill="none" stroke="'+cc+'" stroke-width="'+sw+'" stroke-dasharray="'+dash+'" opacity="0.5"/>';
+        if (conn.label) {
+          var mx = (sx+ex)/2, my = (sy+ey)/2;
+          var lw = conn.label.length * 12 * s + 28 * s;
+          svg += '<rect x="'+(mx-lw/2)+'" y="'+(my-18*s)+'" width="'+lw+'" height="'+(36*s)+'" rx="'+(18*s)+'" fill="'+T.clbg+'" stroke="'+T.bdr+'" stroke-width="'+(0.5*s)+'" opacity="0.93"/>';
+          svg += '<text x="'+mx+'" y="'+(my+6*s)+'" text-anchor="middle" fill="'+T.cl+'" font-size="'+fs.conn+'" font-family="'+fontMono+'" font-weight="500">'+conn.label+'</text>';
+        }
+      });
+
+      // Nodes
+      allNodes.forEach(function(nd) {
+        var p = getPos(nd.id, layout); if (!p) return;
+        var col = TC[nd.type]||T.tm;
+        var icon = ICONS[nd.type]||ICONS.cloud;
+        var params = (nd.params||[]).slice(0,3);
+        var isOp = (zones[nd.id]||'').startsWith('op_');
+        var ly = p.cy + iH/2 + 24*s;
+        svg += '<g>';
+        svg += '<svg x="'+(p.cx-iW/2)+'" y="'+(p.cy-iH/2)+'" width="'+iW+'" height="'+iH+'" viewBox="0 0 48 36" style="color:'+col+';overflow:visible">'+icon+'</svg>';
+        svg += '<text x="'+p.cx+'" y="'+ly+'" text-anchor="middle" fill="'+(isOp?T.opLabel:T.text)+'" font-size="'+fs.label+'" font-weight="600">'+nd.label+(nd.count>1?' (×'+nd.count+')':'')+'</text>';
+        params.forEach(function(pr, i) {
+          svg += '<text x="'+p.cx+'" y="'+(ly+26*s+i*24*s)+'" text-anchor="middle" fill="'+T.ts+'" font-size="'+fs.param+'" font-family="'+fontMono+'" opacity="0.7">'+pr+'</text>';
+        });
+        svg += '</g>';
+      });
+
+      svg += '<text x="'+opLeft+'" y="'+(h-pad.b+25*s)+'" text-anchor="middle" fill="'+T.opLabel+'" font-size="'+fs.zone+'" font-family="'+fontMono+'" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>';
+      svg += '<text x="'+opRight+'" y="'+(h-pad.b+25*s)+'" text-anchor="middle" fill="'+T.opLabel+'" font-size="'+fs.zone+'" font-family="'+fontMono+'" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>';
+      svg += '</svg>';
+
+      canvas.innerHTML = svg;
+    }
 
     function saveState() {
       // Remove any future states if we're not at the end
@@ -208,29 +425,50 @@ const SVG_VIEWER_HTML = `
         .toLowerCase() || 'network-topology'; // Fallback
     }
 
-    // v60: On touch devices, always show Share and try navigator.share() directly
+    // v65: Web Share API support - try on all platforms that support it
     // Don't pre-check canShare() as it may be blocked in ChatGPT sandbox
     var hasShareAPI = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    // On touch devices, always show Share button; on desktop, show Save (but still try share first)
     var showShareButton = isTouchDevice && hasShareAPI;
 
-    // v61: Update save button with SVG icon based on device type
+    // v65: Update BOTH save buttons (inline and fullscreen) with consistent icons/labels
     function updateSaveButton() {
+      var shareIcon = '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>';
+      var saveIcon = '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>';
+
+      // Update fullscreen toolbar button
       var saveBtnIcon = document.getElementById('saveBtnIcon');
       var saveBtnText = document.getElementById('saveBtnText');
       var saveBtn = document.getElementById('saveBtn');
       if (saveBtnIcon && saveBtnText && saveBtn) {
         if (showShareButton) {
-          // Share icon (upload arrow with nodes)
-          saveBtnIcon.innerHTML = '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>';
+          saveBtnIcon.innerHTML = shareIcon;
           saveBtnText.textContent = 'Share';
           saveBtn.setAttribute('aria-label', 'Share diagram');
           saveBtn.setAttribute('title', 'Share diagram via native share sheet');
         } else {
-          // Save icon (floppy disk)
-          saveBtnIcon.innerHTML = '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>';
+          saveBtnIcon.innerHTML = saveIcon;
           saveBtnText.textContent = 'Save';
           saveBtn.setAttribute('aria-label', 'Save diagram as image');
           saveBtn.setAttribute('title', 'Save diagram as PNG image');
+        }
+      }
+
+      // Update inline toolbar button (same logic)
+      var inlineSaveBtnIcon = document.getElementById('inlineSaveBtnIcon');
+      var inlineSaveBtnText = document.getElementById('inlineSaveBtnText');
+      var inlineSaveBtn = document.getElementById('inlineSaveBtn');
+      if (inlineSaveBtnIcon && inlineSaveBtnText && inlineSaveBtn) {
+        if (showShareButton) {
+          inlineSaveBtnIcon.innerHTML = shareIcon;
+          inlineSaveBtnText.textContent = 'Share';
+          inlineSaveBtn.setAttribute('aria-label', 'Share diagram');
+          inlineSaveBtn.setAttribute('title', 'Share diagram via native share sheet');
+        } else {
+          inlineSaveBtnIcon.innerHTML = saveIcon;
+          inlineSaveBtnText.textContent = 'Save';
+          inlineSaveBtn.setAttribute('aria-label', 'Save diagram as image');
+          inlineSaveBtn.setAttribute('title', 'Save diagram as PNG image');
         }
       }
     }
@@ -266,6 +504,8 @@ const SVG_VIEWER_HTML = `
 
     updateTheme();
     window.addEventListener('openai:set_globals', updateTheme);
+    // v63: Listen for displayMode changes
+    window.addEventListener('openai:set_globals', checkDisplayMode);
     var TC = {
       hq_building:'#2563EB',branch:'#2563EB',small_site:'#3B82F6',factory:'#D97706',
       data_center:'#7C3AED',router:'#4F46E5',switch:'#4F46E5',firewall:'#DC2626',
@@ -288,7 +528,7 @@ const SVG_VIEWER_HTML = `
       cloud: '<path d="M14,28 A8,8 0 0,1 10,14 A10,10 0 0,1 28,8 A8,8 0 0,1 40,16 A7,7 0 0,1 38,28 Z" fill="none" stroke="currentColor" stroke-width="2"/>',
       saas: '<path d="M14,26 A7,7 0 0,1 10,14 A9,9 0 0,1 26,8 A7,7 0 0,1 38,14 A6,6 0 0,1 36,26 Z" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="14" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.25"/><rect x="24" y="14" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.25"/>',
       internet: '<circle cx="24" cy="18" r="13" fill="none" stroke="currentColor" stroke-width="1.8"/><ellipse cx="24" cy="18" rx="13" ry="5" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/><ellipse cx="24" cy="18" rx="6" ry="13" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/>',
-      mpls: '<path d="M12,26 A7,7 0 0,1 8,16 A8,8 0 0,1 22,10 A7,7 0 0,1 38,14 A6,6 0 0,1 36,26 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4,2"/><text x="24" y="20" text-anchor="middle" fill="currentColor" font-size="7" font-weight="600" opacity="0.5">MPLS</text>',
+      mpls: '<path d="M12,26 A7,7 0 0,1 8,16 A8,8 0 0,1 22,10 A7,7 0 0,1 38,14 A6,6 0 0,1 36,26 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4,2"/><text x="24" y="20" text-anchor="middle" fill="currentColor" font-size="5" font-weight="600" opacity="0.5">MPLS</text>',
       wireless_ap: '<circle cx="24" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="24" cy="22" r="2" fill="currentColor" opacity="0.35"/><path d="M16,14 A12,12 0 0,1 32,14" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>',
       cell_tower: '<line x1="24" y1="4" x2="16" y2="34" stroke="currentColor" stroke-width="1.8"/><line x1="24" y1="4" x2="32" y2="34" stroke="currentColor" stroke-width="1.8"/><line x1="18" y1="14" x2="30" y2="14" stroke="currentColor" stroke-width="1.2"/><line x1="17" y1="22" x2="31" y2="22" stroke="currentColor" stroke-width="1.2"/>',
       server: '<rect x="10" y="4" width="28" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="14" width="28" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="24" width="28" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>',
@@ -375,9 +615,8 @@ const SVG_VIEWER_HTML = `
       var opCloudH = h - pad.t - pad.b + 30 * s;
       var allNodes = (topology.customerNodes||[]).concat(topology.operatorNodes||[]).concat(topology.externalNodes||[]);
 
-      // Font sizes scaled - v60: increased to match server proportions (was 25-31% of server, now 68-70%)
-      // v61: slightly reduced fonts (~20% smaller than v60)
-      var fs = { title: 42 * s, subtitle: 24 * s, zone: 18 * s, label: 32 * s, param: 22 * s, conn: 18 * s, footer: 14 * s };
+      // Font sizes scaled to 75% of original (v62)
+      var fs = { title: 32 * s, subtitle: 18 * s, zone: 14 * s, label: 24 * s, param: 16 * s, conn: 14 * s, footer: 10 * s };
 
       var fontSans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
       var fontMono = "ui-monospace,SFMono-Regular,Menlo,Monaco,monospace";
@@ -432,8 +671,8 @@ const SVG_VIEWER_HTML = `
         const sw = conn.style==='double'? 4*s : 2.5*s;
 
         let connSvg = '';
-        if (conn.style==='double') connSvg += \`<path d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${10*s}" opacity="0.06"/>\`;
-        connSvg += \`<path d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${sw}" stroke-dasharray="\${dash}" opacity="0.5"/>\`;
+        if (conn.style==='double') connSvg += \`<path data-conn-bg="\${idx}" d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${10*s}" opacity="0.06"/>\`;
+        connSvg += \`<path data-conn="\${idx}" d="\${pathD}" fill="none" stroke="\${cc}" stroke-width="\${sw}" stroke-dasharray="\${dash}" opacity="0.5"/>\`;
 
         if (conn.label) {
           const mx = (sx+ex)/2, my = (sy+ey)/2;
@@ -473,9 +712,9 @@ const SVG_VIEWER_HTML = `
         svg += \`</g>\`;
       });
 
-      // Footer labels
-      svg += \`<text x="\${opLeft}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.footer}" font-family="' + fontMono + '" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>\`;
-      svg += \`<text x="\${opRight}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.footer}" font-family="' + fontMono + '" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>\`;
+      // Footer labels - use fs.zone for consistency with other zone labels (75% scaling)
+      svg += \`<text x="\${opLeft}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="1.5" opacity="0.5">▸ INGRESS</text>\`;
+      svg += \`<text x="\${opRight}" y="\${h-pad.b+25*s}" text-anchor="middle" fill="\${T.opLabel}" font-size="\${fs.zone}" font-family="' + fontMono + '" letter-spacing="1.5" opacity="0.5">EGRESS ▸</text>\`;
 
       if (editMode) svg += \`<text x="\${w-15*s}" y="\${h-12*s}" text-anchor="end" fill="\${T.tm}" font-size="\${fs.param}" font-family="' + fontMono + '" opacity="0.5">Drag to move · Double-click to edit</text>\`;
 
@@ -515,7 +754,9 @@ const SVG_VIEWER_HTML = `
             pt.x = e.clientX; pt.y = e.clientY;
             const svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
             const p = getPos(nodeId, layout);
-            dragState = { nodeId, offsetX: svgPt.x - p.cx, offsetY: svgPt.y - p.cy };
+            // PERF-002: Store starting override for smooth transform updates
+            const startOv = overrides[nodeId] ? {...overrides[nodeId]} : {dx: 0, dy: 0};
+            dragState = { nodeId, offsetX: svgPt.x - p.cx, offsetY: svgPt.y - p.cy, startOverride: startOv };
             canvas.classList.add('dragging');
           });
 
@@ -528,7 +769,9 @@ const SVG_VIEWER_HTML = `
             pt.x = touch.clientX; pt.y = touch.clientY;
             var svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
             var p = getPos(nodeId, layout);
-            dragState = { nodeId, offsetX: svgPt.x - p.cx, offsetY: svgPt.y - p.cy };
+            // PERF-002: Store starting override for smooth transform updates
+            var startOv = overrides[nodeId] ? {dx: overrides[nodeId].dx, dy: overrides[nodeId].dy} : {dx: 0, dy: 0};
+            dragState = { nodeId: nodeId, offsetX: svgPt.x - p.cx, offsetY: svgPt.y - p.cy, startOverride: startOv };
             canvas.classList.add('dragging');
           }, { passive: false });
         });
@@ -659,13 +902,14 @@ const SVG_VIEWER_HTML = `
         dx: clampedCx - base.cx,
         dy: clampedCy - base.cy
       };
-      // PERF-001: Use throttled render during drag to avoid excessive DOM updates
-      throttledRender();
+      // PERF-002: Use requestAnimationFrame + direct transform for smooth 60fps drag
+      requestDragUpdate();
     });
 
     document.addEventListener('mouseup', () => {
       if (dragState) {
         saveState(); // UX-001: Save state after drag for undo
+        renderSVG(); // PERF-002: Full re-render to bake in final positions
       }
       dragState = null;
       canvas.classList.remove('dragging');
@@ -704,13 +948,14 @@ const SVG_VIEWER_HTML = `
         dx: clampedCx - base.cx,
         dy: clampedCy - base.cy
       };
-      // PERF-001: Use throttled render during touch drag to avoid excessive DOM updates
-      throttledRender();
+      // PERF-002: Use requestAnimationFrame + direct transform for smooth 60fps drag
+      requestDragUpdate();
     }, { passive: false });
 
     document.addEventListener('touchend', function() {
       if (dragState) {
         saveState(); // UX-001: Save state after touch drag
+        renderSVG(); // PERF-002: Full re-render to bake in final positions
       }
       dragState = null;
       canvas.classList.remove('dragging');
@@ -790,6 +1035,7 @@ const SVG_VIEWER_HTML = `
       renderSVG();
     };
 
+    // v65: Unified export/share function - tries multiple methods
     window.exportSVG = function() {
       if (!svgEl) { console.error('No SVG to export'); return; }
       try {
@@ -807,11 +1053,11 @@ const SVG_VIEWER_HTML = `
 
         var svgData = new XMLSerializer().serializeToString(clone);
 
-        // v60: Use sanitized filename from solution title
+        // v65: Consistent filename from solution title
         var filename = sanitizeFilename(topology?.solutionTitle) + '.png';
+        var title = (topology?.solutionTitle || 'Network Topology').substring(0, 100);
 
-        // v45: Convert SVG to PNG for reliable mobile saving
-        // SVG data URIs don't work well with long-press save on mobile
+        // Convert SVG to PNG
         var exportCanvas = document.createElement('canvas');
         exportCanvas.width = 1600;
         exportCanvas.height = 900;
@@ -823,39 +1069,35 @@ const SVG_VIEWER_HTML = `
           ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
           ctx.drawImage(tempImg, 0, 0);
 
-          // v60: Try Web Share API directly on touch devices (don't pre-check canShare)
-          if (showShareButton) {
+          // v65: Always try Web Share API first if available (works on mobile + modern desktop)
+          if (hasShareAPI) {
             exportCanvas.toBlob(function(blob) {
               if (!blob) {
-                var pngDataUri = exportCanvas.toDataURL('image/png');
-                showSaveModal(pngDataUri, filename);
+                showSaveModal(exportCanvas.toDataURL('image/png'), filename);
                 return;
               }
 
               var file = new File([blob], filename, { type: 'image/png' });
 
-              // Try share directly - ChatGPT sandbox may block canShare but allow share
+              // Try share with file - this shares the actual PNG image
               navigator.share({
                 files: [file],
-                title: (topology?.solutionTitle || 'Network Topology').substring(0, 100),
-                text: 'Network topology diagram'
+                title: title
               }).then(function() {
                 announceStatus('Diagram shared successfully');
               }).catch(function(err) {
                 if (err.name === 'AbortError') {
                   announceStatus('Share cancelled');
                 } else {
-                  // Share failed (blocked by sandbox), fall back to modal
-                  console.warn('Share failed:', err);
-                  var pngDataUri = exportCanvas.toDataURL('image/png');
-                  showSaveModal(pngDataUri, filename);
+                  // Share failed, try direct download, then modal fallback
+                  console.warn('Share failed:', err.message);
+                  tryDownloadOrModal(exportCanvas, filename);
                 }
               });
             }, 'image/png');
           } else {
-            // Desktop or no share API, use modal
-            var pngDataUri = exportCanvas.toDataURL('image/png');
-            showSaveModal(pngDataUri, filename);
+            // No share API, try download then modal
+            tryDownloadOrModal(exportCanvas, filename);
           }
         };
         tempImg.onerror = function() {
@@ -869,6 +1111,12 @@ const SVG_VIEWER_HTML = `
         console.error('Export failed:', e);
       }
     };
+
+    // v65: Fallback to save modal (download is blocked in ChatGPT sandbox)
+    function tryDownloadOrModal(canvas, filename) {
+      var pngDataUri = canvas.toDataURL('image/png');
+      showSaveModal(pngDataUri, filename);
+    }
 
     function showSaveModal(dataUri, filename) {
       var modal = document.createElement('div');
@@ -914,23 +1162,153 @@ const SVG_VIEWER_HTML = `
       hintContainer.appendChild(iconSpan);
       hintContainer.appendChild(hintText);
 
+      // v68: Convert data URI to Blob for file creation
+      function dataURItoBlob(dataURI) {
+        var byteString = atob(dataURI.split(',')[1]);
+        var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        var ab = new ArrayBuffer(byteString.length);
+        var ia = new Uint8Array(ab);
+        for (var i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], {type: mimeString});
+      }
+
+      var blob = dataURItoBlob(dataUri);
+
+      var downloadBtn = document.createElement('a');
+      downloadBtn.textContent = 'Download';
+      downloadBtn.setAttribute('role', 'button');
+      downloadBtn.setAttribute('aria-label', 'Download image as ' + filename);
+      downloadBtn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;margin-top:16px;padding:14px 32px;min-width:200px;min-height:44px;background:#3B82F6;color:#fff;border:none;border-radius:8px;font-size:18px;font-weight:600;text-decoration:none;cursor:pointer;transition:background 0.15s ease';
+      downloadBtn.onmouseenter = function() { downloadBtn.style.background = '#2563EB'; };
+      downloadBtn.onmouseleave = function() { downloadBtn.style.background = '#3B82F6'; };
+      downloadBtn.onfocus = function() { downloadBtn.style.outline = '2px solid #fff'; downloadBtn.style.outlineOffset = '2px'; };
+      downloadBtn.onblur = function() { downloadBtn.style.outline = 'none'; };
+
+      // v68: Track state for ChatGPT file upload
+      var downloadUrl = null;
+      var isPreparingDownload = false;
+
+      // v69: Disclosure for native API upload
+      var disclosure = document.createElement('div');
+      disclosure.style.cssText = 'display:none;margin-top:8px;padding:6px 12px;font-size:11px;color:#888;text-align:center;max-width:280px;line-height:1.4';
+      disclosure.innerHTML = '<span style="margin-right:4px">ℹ️</span>Download uploads image to OpenAI servers';
+      disclosure.setAttribute('role', 'note');
+
+      // v68: Try to use ChatGPT's native file APIs for reliable download
+      async function prepareNativeDownload() {
+        // Feature detection for ChatGPT file APIs
+        if (typeof window.openai?.uploadFile !== 'function' || typeof window.openai?.getFileDownloadUrl !== 'function') {
+          if (DEBUG) console.log('ChatGPT file APIs not available, using fallback');
+          return false;
+        }
+
+        try {
+          isPreparingDownload = true;
+          downloadBtn.textContent = 'Preparing download...';
+          downloadBtn.style.pointerEvents = 'none';
+          downloadBtn.style.opacity = '0.7';
+
+          // Create a File from the blob
+          var file = new File([blob], filename, { type: 'image/png' });
+
+          // Upload to ChatGPT's file system
+          var uploadResult = await window.openai.uploadFile(file);
+          if (!uploadResult?.fileId) {
+            throw new Error('Upload failed - no fileId returned');
+          }
+
+          if (DEBUG) console.log('File uploaded, fileId:', uploadResult.fileId);
+
+          // Get the download URL from ChatGPT
+          var urlResult = await window.openai.getFileDownloadUrl({ fileId: uploadResult.fileId });
+          if (!urlResult?.downloadUrl) {
+            throw new Error('Failed to get download URL');
+          }
+
+          if (DEBUG) console.log('Got download URL');
+
+          // Set up the download link with the native URL
+          downloadUrl = urlResult.downloadUrl;
+          downloadBtn.href = downloadUrl;
+          downloadBtn.download = filename;
+          downloadBtn.textContent = 'Download';
+          downloadBtn.style.pointerEvents = 'auto';
+          downloadBtn.style.opacity = '1';
+          isPreparingDownload = false;
+
+          return true;
+        } catch (err) {
+          console.warn('ChatGPT file API failed:', err.message);
+          downloadBtn.textContent = 'Download';
+          downloadBtn.style.pointerEvents = 'auto';
+          downloadBtn.style.opacity = '1';
+          isPreparingDownload = false;
+          return false;
+        }
+      }
+
+      // v68: Handle click - prepare download on first click if needed
+      downloadBtn.onclick = async function(e) {
+        // If we already have a download URL, let the default anchor behavior work
+        if (downloadUrl) {
+          return true;
+        }
+
+        // Prevent default while we prepare
+        e.preventDefault();
+
+        // If already preparing, ignore
+        if (isPreparingDownload) {
+          return false;
+        }
+
+        // Try to prepare native download
+        var success = await prepareNativeDownload();
+        if (success && downloadUrl) {
+          // Trigger the download programmatically since we prevented default
+          window.open(downloadUrl, '_blank');
+        }
+        // If failed, the hint container shows fallback instructions
+
+        return false;
+      };
+
+      // Helper to remove modal
+      function closeModal() {
+        modal.remove();
+      }
+
       var closeBtn = document.createElement('button');
       closeBtn.textContent = '✕';
       closeBtn.setAttribute('aria-label', 'Close save dialog');
       closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:44px;height:44px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:20px;color:#fff;cursor:pointer';
       closeBtn.onmouseenter = function() { closeBtn.style.background = 'rgba(255,255,255,0.25)'; };
       closeBtn.onmouseleave = function() { closeBtn.style.background = 'rgba(255,255,255,0.15)'; };
-      closeBtn.onclick = function() { modal.remove(); };
+      closeBtn.onclick = closeModal;
 
       modal.appendChild(img);
       modal.appendChild(filenameLabel);
+      modal.appendChild(downloadBtn);
+      modal.appendChild(disclosure);
       modal.appendChild(hintContainer);
       modal.appendChild(closeBtn);
-      modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+      modal.onclick = function(e) { if (e.target === modal) closeModal(); };
       document.body.appendChild(modal);
 
-      // MOB-003: Device-appropriate screen reader announcement
-      announceStatus((isTouchDevice ? 'Long-press' : 'Right-click') + ' image to save as ' + filename);
+      // MOB-003: Device-appropriate screen reader announcement (v68: mention download button)
+      announceStatus('Click Download button or ' + (isTouchDevice ? 'long-press' : 'right-click') + ' image to save as ' + filename);
+
+      // v68: Try to prepare native download immediately in background
+      prepareNativeDownload().then(function(success) {
+        if (success) {
+          // Update hint to indicate download is ready
+          hintText.textContent = 'Click Download or ' + (isTouchDevice ? 'long-press' : 'right-click') + ' to save';
+          // v69: Show disclosure when using native API (uploads to OpenAI)
+          disclosure.style.display = 'block';
+        }
+      });
     }
 
     // Data loading - try many possible locations
@@ -982,6 +1360,7 @@ const SVG_VIEWER_HTML = `
     var DEBUG = false;  // Set to true for verbose logging
     var lastRenderTime = 0;
     var pendingRender = null;
+    var dragRAFPending = false;  // PERF-002: Track RAF during drag
 
     // v50: Throttled render to avoid excessive re-renders during streaming
     function throttledRender() {
@@ -1001,6 +1380,73 @@ const SVG_VIEWER_HTML = `
       renderSVG();
     }
 
+    // PERF-002: Smooth drag using requestAnimationFrame + direct transform
+    // Instead of re-rendering entire SVG, update dragged node position directly
+    function updateDragVisual() {
+      if (!dragState || !svgEl) return;
+
+      var nodeGroup = svgEl.querySelector('[data-node="' + dragState.nodeId + '"]');
+      if (!nodeGroup) return;
+
+      // Calculate delta from drag START position (not from base)
+      // dragState.startOverride stores the override when drag began
+      var ov = overrides[dragState.nodeId] || {dx: 0, dy: 0};
+      var startOv = dragState.startOverride || {dx: 0, dy: 0};
+      var visualDx = ov.dx - startOv.dx;
+      var visualDy = ov.dy - startOv.dy;
+
+      // Apply transform for ONLY the delta since drag started
+      nodeGroup.setAttribute('transform', 'translate(' + visualDx + ',' + visualDy + ')');
+
+      // Also update connection lines that touch this node
+      updateConnectionsForNode(dragState.nodeId);
+    }
+
+    // PERF-002: Update connection lines for a dragged node
+    function updateConnectionsForNode(nodeId) {
+      if (!svgEl || !topology || !topology.connections) return;
+
+      var w = 1600, h = 900;
+      var layout = computeLayout(topology, w, h, scale);
+
+      topology.connections.forEach(function(conn, idx) {
+        if (conn.from !== nodeId && conn.to !== nodeId) return;
+
+        var pathEl = svgEl.querySelector('[data-conn="' + idx + '"]');
+        if (!pathEl) return;
+
+        var fromPos = getPos(conn.from, layout);
+        var toPos = getPos(conn.to, layout);
+        if (!fromPos || !toPos) return;
+
+        // Recalculate path
+        var x1 = fromPos.cx, y1 = fromPos.cy;
+        var x2 = toPos.cx, y2 = toPos.cy;
+        var newPath;
+
+        if (Math.abs(x2 - x1) < 20) {
+          newPath = 'M' + x1 + ',' + y1 + ' L' + x2 + ',' + y2;
+        } else if (Math.abs(y2 - y1) < 20) {
+          newPath = 'M' + x1 + ',' + y1 + ' L' + x2 + ',' + y2;
+        } else {
+          var mx = (x1 + x2) / 2;
+          newPath = 'M' + x1 + ',' + y1 + ' C' + mx + ',' + y1 + ' ' + mx + ',' + y2 + ' ' + x2 + ',' + y2;
+        }
+
+        pathEl.setAttribute('d', newPath);
+      });
+    }
+
+    // PERF-002: Request animation frame for smooth drag updates
+    function requestDragUpdate() {
+      if (dragRAFPending) return;
+      dragRAFPending = true;
+      requestAnimationFrame(function() {
+        dragRAFPending = false;
+        updateDragVisual();
+      });
+    }
+
     // v54: Show clear loading state with status messages
     // v55: Cisco-style SVG loading icons (replace emojis)
     var loadingStage = 'init';  // init, streaming, rendering
@@ -1015,6 +1461,7 @@ const SVG_VIEWER_HTML = `
       rendering: '<svg viewBox="0 0 48 36" width="48" height="36"><rect x="8" y="4" width="24" height="28" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="10" x2="24" y2="10" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="12" y1="16" x2="28" y2="16" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="12" y1="22" x2="20" y2="22" stroke="currentColor" stroke-width="1.2" opacity="0.35"/><line x1="36" y1="8" x2="26" y2="26" stroke="currentColor" stroke-width="2"/><polyline points="26,26 24,28 28,30" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="38" cy="6" r="3" fill="currentColor" opacity="0.25"/></svg>'
     };
 
+    // v63: Show loading in canvas
     function showLoading(stage, data) {
       loadingStage = stage;
       const title = data?.solutionTitle || 'Network Topology';
@@ -1036,6 +1483,7 @@ const SVG_VIEWER_HTML = `
       const iconSvg = LOADING_ICONS[stage] || LOADING_ICONS.init;
       const dots = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
 
+      // v63: Render loading to canvas
       canvas.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:32px">' +
         '<style>' +
         '.dots span{animation:blink 1.4s infinite;opacity:0}.dots span:nth-child(2){animation-delay:0.2s}.dots span:nth-child(3){animation-delay:0.4s}@keyframes blink{0%,100%{opacity:0}50%{opacity:1}}' +
@@ -1047,11 +1495,15 @@ const SVG_VIEWER_HTML = `
         (s.sub ? '<div style="margin-top:12px;font-size:12px;color:' + T.tm + '">' + s.sub + '</div>' : '') +
         '</div>';
 
+      // Update title in toolbar
+      if (diagramTitle) diagramTitle.textContent = title !== 'Network Topology' ? title : '';
+
       if (typeof window.openai?.notifyIntrinsicHeight === 'function') {
         try { window.openai.notifyIntrinsicHeight(300); } catch(e) {}
       }
     }
 
+    // v63: Load data and render
     function tryLoad() {
       if (initialized) return true;
       if (typeof window.openai !== 'object' || !window.openai) return false;
@@ -1065,7 +1517,8 @@ const SVG_VIEWER_HTML = `
           initialized = true;
           topology = data;
           if (DEBUG) console.log('Complete data loaded');
-          renderSVG();
+          // v63: Render to preview mode first (user clicks Edit to open fullscreen)
+          render();
           saveState();
           return true;
         }
@@ -1096,11 +1549,13 @@ const SVG_VIEWER_HTML = `
 
         // Small delay to show "Drawing diagram" before render
         setTimeout(() => {
+          if (initialized) return;  // v63: Prevent double render race
           const freshData = tryGetData(window.openai || {});
           if (freshData) {
             topology = freshData;
             initialized = true;
-            renderSVG();
+            // v63: Render to preview (user clicks Edit for fullscreen)
+            render();
             saveState();
           }
         }, 300);
@@ -1123,12 +1578,14 @@ const SVG_VIEWER_HTML = `
 
       // Check if toolOutput is now available (complete data)
       if (openai.toolOutput?.topology || openai.toolOutput) {
+        if (initialized) return;  // v63: Prevent double render race
         hasToolOutput = true;
         const data = tryGetData(openai);
         if (data) {
           topology = data;
           initialized = true;
-          renderSVG();
+          // v63: Render to preview (user clicks Edit for fullscreen)
+          render();
           saveState();
         }
         return;
@@ -1142,6 +1599,7 @@ const SVG_VIEWER_HTML = `
       }
     });
 
+    // v63: Show debug info in preview canvas
     function showDebug() {
       const openai = window.openai || {};
       const info = {
@@ -1207,7 +1665,8 @@ const SVG_VIEWER_HTML = `
 // v59: PERF-001 throttled drag, BUG-002 fix icon jumping (no render dedup)
 // v60: Web Share API - native share sheet on mobile, fallback to modal
 // v61: Professional SVG toolbar icons, refined button styling, focus states
-const SVG_VIEWER_URI = "ui://widget/svg-viewer-v61.html";
+// v63: Fullscreen overlay mode - preview in chat, expand for interactive editing
+const SVG_VIEWER_URI = "ui://widget/svg-viewer-v63.html";
 
 // Create MCP server instance
 function createServer(): McpServer {
