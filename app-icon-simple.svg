@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#2563eb"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Central cloud shape -->
+  <path d="M120,340
+           C70,340 50,290 75,240
+           C50,190 100,130 165,130
+           C180,80 260,60 320,90
+           C380,60 450,90 455,155
+           C500,175 510,250 470,300
+           C495,350 450,380 390,380
+           L120,380 Z"
+        fill="#10b981"
+        opacity="0.12"
+        stroke="#10b981"
+        stroke-width="4"
+        stroke-dasharray="16,8"/>
+
+  <!-- Connection lines with glow -->
+  <g filter="url(#glow)">
+    <!-- Horizontal main line -->
+    <line x1="130" y1="256" x2="382" y2="256" stroke="#10b981" stroke-width="6" opacity="0.7"/>
+    <!-- Branch to top-left -->
+    <line x1="180" y1="256" x2="130" y2="180" stroke="#10b981" stroke-width="5" opacity="0.6"/>
+    <!-- Branch to bottom-left -->
+    <line x1="180" y1="256" x2="130" y2="332" stroke="#10b981" stroke-width="5" opacity="0.6"/>
+    <!-- Branch to top-right -->
+    <line x1="332" y1="256" x2="382" y2="180" stroke="#10b981" stroke-width="5" opacity="0.6"/>
+    <!-- Branch to bottom-right -->
+    <line x1="332" y1="256" x2="382" y2="332" stroke="#10b981" stroke-width="5" opacity="0.6"/>
+  </g>
+
+  <!-- Left nodes (customer) -->
+  <g filter="url(#glow)">
+    <circle cx="130" cy="180" r="32" fill="#1e3a5f" stroke="#3b82f6" stroke-width="4"/>
+    <rect x="114" y="168" width="32" height="24" rx="3" fill="#3b82f6" opacity="0.6"/>
+
+    <circle cx="130" cy="332" r="32" fill="#1e3a5f" stroke="#3b82f6" stroke-width="4"/>
+    <rect x="114" y="320" width="32" height="24" rx="3" fill="#3b82f6" opacity="0.6"/>
+  </g>
+
+  <!-- Center nodes (router + firewall) -->
+  <g filter="url(#glow)">
+    <!-- Router -->
+    <circle cx="180" cy="256" r="36" fill="#1e3a5f" stroke="#10b981" stroke-width="4"/>
+    <path d="M164,256 L176,248 V253 H184 V248 L196,256 L184,264 V259 H176 V264 Z" fill="#10b981"/>
+
+    <!-- Firewall -->
+    <circle cx="332" cy="256" r="36" fill="#1e3a5f" stroke="#f59e0b" stroke-width="4"/>
+    <rect x="316" y="244" width="32" height="6" rx="1" fill="#f59e0b" opacity="0.7"/>
+    <rect x="320" y="254" width="24" height="6" rx="1" fill="#f59e0b" opacity="0.7"/>
+    <rect x="316" y="264" width="32" height="6" rx="1" fill="#f59e0b" opacity="0.7"/>
+  </g>
+
+  <!-- Right nodes (cloud/external) -->
+  <g filter="url(#glow)">
+    <circle cx="382" cy="180" r="32" fill="#1e3a5f" stroke="#8b5cf6" stroke-width="4"/>
+    <!-- Cloud icon -->
+    <path d="M366,188 A8,8 0 0,1 370,174 A10,10 0 0,1 388,172 A8,8 0 0,1 398,180 A6,6 0 0,1 394,192 Z"
+          fill="none" stroke="#8b5cf6" stroke-width="3"/>
+
+    <circle cx="382" cy="332" r="32" fill="#1e3a5f" stroke="#8b5cf6" stroke-width="4"/>
+    <!-- Globe icon -->
+    <circle cx="382" cy="332" r="14" fill="none" stroke="#8b5cf6" stroke-width="2.5"/>
+    <ellipse cx="382" cy="332" rx="6" ry="14" fill="none" stroke="#8b5cf6" stroke-width="2"/>
+    <line x1="368" y1="332" x2="396" y2="332" stroke="#8b5cf6" stroke-width="2"/>
+  </g>
+</svg>

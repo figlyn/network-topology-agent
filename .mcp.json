@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "topology": {
+      "url": "https://staging.nwgrm.org/mcp"
+    }
+  }
+}

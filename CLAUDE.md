@@ -2,6 +2,50 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## ⚠️ CRITICAL: Default Role is ORCHESTRATOR
+
+**You are an ORCHESTRATOR, not a Developer.**
+
+Your job is to **delegate tasks to specialized agents**, not to implement them yourself.
+
+### Before ANY Edit or Write action, you MUST:
+
+1. **STOP** - Do not use Edit or Write tools directly
+2. **IDENTIFY** - Which agent should handle this? (See Agent Decision Matrix below)
+3. **DELEGATE** - Use Task tool to spawn the appropriate agent
+4. **REPORT** - Summarize the agent's results to the user
+
+### What you CAN do directly:
+
+- ✅ Read files (Read, Glob, Grep)
+- ✅ Run tests (`npm run test:run`)
+- ✅ Answer questions about the codebase
+- ✅ Plan and coordinate workflows
+- ✅ Summarize agent outputs
+
+### What you MUST delegate:
+
+- ❌ **Any code changes** → Developer agent
+- ❌ **Any testing in browser** → Tester agent
+- ❌ **Any deployment** → Deployer agent
+- ❌ **Multiple tasks** → Orchestrator agent
+- ❌ **Bug investigation** → Debugger agent
+
+### Enforcement
+
+If you find yourself about to use Edit or Write:
+```
+STOP. Ask yourself: "Why am I not delegating this?"
+
+If the answer is "it's faster" or "it's simple" → DELEGATE ANYWAY
+```
+
+The agents exist because they have specialized knowledge (skills, workflows, checklists) that direct action bypasses.
+
+---
+
 ## Required Skills
 
 **MANDATORY**: When working on ChatGPT Apps integration, MCP server, or widget development, you MUST first read and apply the ChatGPT App Builder skill:
@@ -158,7 +202,39 @@ Deployer (pre-checks) → Deployer (staging) → Tester → Mobile Tester → De
 
 ### MANDATORY: Agent Delegation Rules
 
-**DO NOT rush to do tasks yourself. ALWAYS delegate to specialized agents.**
+**⚠️ DO NOT rush to do tasks yourself. ALWAYS delegate to specialized agents.**
+
+#### Pre-Action Checkpoint (REQUIRED)
+
+Before responding to ANY user request, run this checklist:
+
+```
+□ Does this require code changes?      → YES → Delegate to Developer
+□ Does this require testing?           → YES → Delegate to Tester
+□ Does this require deployment?        → YES → Delegate to Deployer
+□ Is this a multi-step task?           → YES → Delegate to Orchestrator
+□ Am I about to use Edit/Write tool?   → YES → STOP and delegate
+
+Only proceed directly if ALL answers are NO.
+```
+
+#### Example: User says "fix the save button"
+
+❌ **WRONG** (what I tend to do):
+```
+1. Read the file
+2. Edit the code directly
+3. Run tests
+4. Tell user it's done
+```
+
+✅ **CORRECT** (what I should do):
+```
+1. Identify: This requires code changes → Developer agent
+2. Delegate: Task tool → "Read .claude/agents/DEVELOPER.md. Fix the save button..."
+3. Report: Summarize what the Developer agent did
+4. Follow up: Delegate to Tester agent to verify
+```
 
 #### You MUST use subagents for:
 
@@ -254,7 +330,20 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v59 DEPLOYED TO PRODUCTION** - Performance and stability fixes.
+**v68 DEPLOYED TO PRODUCTION** - Native file download, typography refinements, iOS safe area fix.
+
+### v68 Features (2026-02-27)
+
+| Feature | Description |
+|---------|-------------|
+| Native file API | Download uses File System API with privacy disclosure for trusted save experience |
+| Font sizes reduced | All fonts reduced to 75% of previous size for better visual balance |
+| Zone label consistency | Fixed Ingress/Egress labels to use consistent fs.zone (14*s) sizing |
+| MOB-006 | iOS safe area fix - toolbar no longer hidden under status bar |
+| UX-008 | Changed inline button from "Edit" to "Expand" for clarity |
+| PERF-002 | Smooth 60fps drag using requestAnimationFrame instead of throttled setTimeout |
+
+**Key insight:** Native File System API provides better UX than modal right-click save, with proper privacy disclosure for user trust.
 
 ### v59 Fixes (2026-02-25)
 
@@ -328,7 +417,11 @@ The root cause was ChatGPT streaming JSON incrementally. Previous versions rende
 
 ## Widget Version History
 
-- **v59: (PRODUCTION)** ✅ Throttled drag, fixed icon jumping (reverted v58 render dedup)
+- **v68: (PRODUCTION)** ✅ Native file download, 75% font sizes, iOS safe area, "Expand" button, 60fps drag
+- **v65:** ✅ iOS safe area insets, zone label consistency
+- **v64:** ✅ Changed "Edit" to "Expand" on inline button
+- **v63:** ✅ ChatGPT native fullscreen API integration
+- **v59:** ✅ Throttled drag, fixed icon jumping (reverted v58 render dedup)
 - **v58:** ❌ Render deduplication caused icon collapse
 - **v54:** ✅ Clean loading UX - messages during streaming, render only when complete
 - **v53:** ✅ Use toolOutput (connections visible)

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Gradient for background -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+    <!-- Gradient for cloud -->
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:0.25" />
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)"/>
+
+  <!-- Operator Cloud (center) -->
+  <path d="M140,320
+           C100,320 80,280 100,240
+           C80,200 120,160 170,160
+           C180,120 240,100 290,120
+           C340,100 400,120 410,170
+           C450,180 460,240 430,280
+           C450,320 420,350 370,350
+           L140,350 C120,350 100,340 140,320 Z"
+        fill="url(#cloudGrad)"
+        stroke="#10b981"
+        stroke-width="3"
+        stroke-dasharray="12,6"
+        opacity="0.9"/>
+
+  <!-- Connection lines -->
+  <g stroke="#10b981" stroke-width="4" opacity="0.6" filter="url(#glow)">
+    <!-- Left node to center router -->
+    <line x1="120" y1="256" x2="200" y2="256"/>
+    <!-- Center router to firewall -->
+    <line x1="248" y1="256" x2="296" y2="256"/>
+    <!-- Firewall to right node -->
+    <line x1="344" y1="256" x2="392" y2="256"/>
+  </g>
+
+  <!-- Customer Node (left) - Building icon -->
+  <g transform="translate(76, 212)">
+    <rect x="0" y="16" width="44" height="72" rx="4" fill="#3b82f6" opacity="0.2" stroke="#3b82f6" stroke-width="3"/>
+    <rect x="8" y="0" width="28" height="88" rx="3" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2.5"/>
+    <!-- Windows -->
+    <rect x="14" y="10" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.5"/>
+    <rect x="26" y="10" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.5"/>
+    <rect x="14" y="24" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.5"/>
+    <rect x="26" y="24" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.5"/>
+    <rect x="14" y="38" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.5"/>
+    <rect x="26" y="38" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.5"/>
+    <!-- Door -->
+    <rect x="18" y="60" width="12" height="20" rx="2" fill="#3b82f6" opacity="0.7"/>
+  </g>
+
+  <!-- Router (center-left) -->
+  <g transform="translate(200, 224)">
+    <rect x="0" y="8" width="48" height="48" rx="6" fill="#1e3a5f" stroke="#10b981" stroke-width="3"/>
+    <!-- Arrows -->
+    <path d="M12,32 L20,26 L20,30 L28,30 L28,26 L36,32 L28,38 L28,34 L20,34 L20,38 Z" fill="#10b981" opacity="0.8"/>
+    <!-- Ports -->
+    <rect x="6" y="50" width="8" height="4" rx="1" fill="#10b981" opacity="0.6"/>
+    <rect x="20" y="50" width="8" height="4" rx="1" fill="#10b981" opacity="0.6"/>
+    <rect x="34" y="50" width="8" height="4" rx="1" fill="#10b981" opacity="0.6"/>
+  </g>
+
+  <!-- Firewall (center-right) -->
+  <g transform="translate(296, 224)">
+    <rect x="0" y="8" width="48" height="48" rx="6" fill="#1e3a5f" stroke="#ef4444" stroke-width="3"/>
+    <!-- Brick pattern -->
+    <rect x="6" y="16" width="16" height="8" rx="1" fill="#ef4444" opacity="0.4"/>
+    <rect x="26" y="16" width="16" height="8" rx="1" fill="#ef4444" opacity="0.4"/>
+    <rect x="10" y="28" width="16" height="8" rx="1" fill="#ef4444" opacity="0.4"/>
+    <rect x="30" y="28" width="12" height="8" rx="1" fill="#ef4444" opacity="0.4"/>
+    <rect x="6" y="40" width="16" height="8" rx="1" fill="#ef4444" opacity="0.4"/>
+    <rect x="26" y="40" width="16" height="8" rx="1" fill="#ef4444" opacity="0.4"/>
+  </g>
+
+  <!-- Cloud/Internet Node (right) -->
+  <g transform="translate(392, 224)">
+    <circle cx="24" cy="32" r="28" fill="#8b5cf6" opacity="0.15" stroke="#8b5cf6" stroke-width="3"/>
+    <!-- Globe lines -->
+    <ellipse cx="24" cy="32" rx="20" ry="20" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.5"/>
+    <ellipse cx="24" cy="32" rx="8" ry="20" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.5"/>
+    <line x1="4" y1="32" x2="44" y2="32" stroke="#8b5cf6" stroke-width="2" opacity="0.5"/>
+    <line x1="24" y1="12" x2="24" y2="52" stroke="#8b5cf6" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <!-- Labels -->
+  <text x="100" y="400" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="24" text-anchor="middle">Customer</text>
+  <text x="256" y="400" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="24" text-anchor="middle">Network</text>
+  <text x="416" y="400" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="24" text-anchor="middle">Cloud</text>
+
+  <!-- App name at bottom -->
+  <text x="256" y="470" fill="#e2e8f0" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="36" font-weight="600" text-anchor="middle">Network Gramm</text>
+</svg>

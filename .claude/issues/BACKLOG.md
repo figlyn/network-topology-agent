@@ -90,6 +90,32 @@ Icons/nodes jump or shift position during edit mode interactions.
 
 ---
 
+### UX-008: Confusing "Edit" button on inline vs fullscreen views
+- **Priority:** P1
+- **Status:** `completed`
+- **Component:** Widget
+- **Reporter:** User
+- **Date:** 2026-02-26
+- **Fixed:** v64
+
+**Description:**
+Two buttons labeled "Edit" cause user confusion:
+1. **Inline mode**: The expand button (`expandBtn`) displays "Edit" text but actually opens fullscreen mode
+2. **Fullscreen mode**: The actual edit toggle button (`editBtn`) also displays "Edit"
+
+**Fix:** Changed inline button label from "Edit" to "Expand" and updated aria-label to "Expand to fullscreen editor" (mcp-server.ts:144-146)
+
+**Acceptance Criteria:**
+- [x] Inline expand button displays "Expand" (not "Edit")
+- [x] Expand button icon matches expand action (arrows pointing outward - already correct)
+- [x] Fullscreen Edit button retains "Edit" label
+- [x] Users understand the distinction between expand and edit actions
+- [x] Accessible labels updated to match visible text
+
+**Test Cases:** TC-UX008-01 through TC-UX008-13 (13 tests)
+
+---
+
 ### UX-007: Save Modal Visual Guidance
 - **Priority:** P2
 - **Status:** `completed`
@@ -122,6 +148,13 @@ The save modal shows "Right-click to save" (desktop) or "Long-press to save" (to
 ## Completed Issues
 
 _Moved to CHANGELOG.md after verification_
+
+### Recently Completed (v68)
+- **PERF-002**: 60fps drag using requestAnimationFrame - Smooth node dragging
+- **MOB-006**: iOS fullscreen toolbar hidden - Added safe area insets
+- **FONT-001**: Ingress/Egress label size inconsistency - Now using fs.zone (14*s) like other zone labels
+- **UX-008**: Confusing "Edit" button - Changed to "Expand"
+- **Native file download**: File System API with privacy disclosure
 
 ### Recently Completed (v59)
 - **PERF-001**: Throttled drag rendering - Fixed in v59

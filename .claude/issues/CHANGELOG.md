@@ -25,6 +25,37 @@ _Issues verified but not yet deployed_
 
 ---
 
+## [v68] - 2026-02-27
+
+### Added
+- **Native file API download**: Uses File System API with privacy disclosure for trusted save experience, falling back to modal for unsupported browsers
+- **Smooth 60fps drag** (PERF-002): Replaced throttled setTimeout (10fps) with requestAnimationFrame for smooth node dragging
+- **Direct transform updates**: During drag, only update node transform and connection paths (no full re-render)
+- **Connection targeting**: Added `data-conn` attribute to connection paths for targeted updates during drag
+
+### Fixed
+- **iOS safe area** (MOB-006): Added `viewport-fit=cover` and safe area inset padding to fullscreen toolbar
+- **Zone label consistency** (FONT-001): Fixed Ingress/Egress labels to use fs.zone (14*s) like other zone labels
+
+### Changed
+- **Font sizes reduced to 75%**: All typography scaled down for better visual balance
+- **Inline button label** (UX-008): Changed from "Edit" to "Expand" to clarify action (opens fullscreen mode)
+- **Accessible labels updated**: aria-label changed to "Expand to fullscreen editor"
+
+### Technical
+- `requestDragUpdate()` uses requestAnimationFrame for 60fps updates
+- `updateDragVisual()` directly modifies node transform attribute
+- `updateConnectionsForNode()` updates only affected connection paths
+- `startOverride` stored on drag start for correct visual delta calculation
+- Full `renderSVG()` only on drag end to bake in final positions
+
+### Key Learning
+- Native File System API provides better UX than modal right-click save
+- Privacy disclosure builds user trust when accessing file system
+- Direct DOM manipulation during drag is much smoother than full re-renders
+
+---
+
 ## [v59] - 2026-02-25
 
 ### Fixed
