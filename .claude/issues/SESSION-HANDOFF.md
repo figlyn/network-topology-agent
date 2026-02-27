@@ -2,15 +2,13 @@
 
 Last updated: 2026-02-27
 
-## Current Branch
+## Session Status: COMPLETE
 
-`feature/fullscreen-edit-overlay`
+**v68 is DEPLOYED TO PRODUCTION and MERGED TO MAIN**
 
-## Deployed to Production
+Branch `feature/fullscreen-edit-overlay` has been merged via PR #1.
 
-**v68** is now live on production.
-
-### v68 Release Summary
+## v68 Release Summary
 
 | Feature | Description |
 |---------|-------------|
@@ -23,11 +21,10 @@ Last updated: 2026-02-27
 
 ## Current Versions
 
-| Environment | Version |
-|-------------|---------|
-| Production | v68 |
-| Staging | v68 |
-| Local | v68 |
+| Environment | Version | Branch |
+|-------------|---------|--------|
+| Production | v68 | main |
+| Staging | v68 | main |
 
 ## Known Issues Still Open
 

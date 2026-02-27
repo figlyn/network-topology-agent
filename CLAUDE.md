@@ -330,7 +330,9 @@ npm run test:run && npm run typecheck
 
 ## Current Status
 
-**v68 DEPLOYED TO PRODUCTION** - Native file download, typography refinements, iOS safe area fix.
+**v68 DEPLOYED TO PRODUCTION AND MERGED TO MAIN** - Native file download, typography refinements, iOS safe area fix.
+
+Branch `feature/fullscreen-edit-overlay` merged via PR #1 on 2026-02-27.
 
 ### v68 Features (2026-02-27)
 
